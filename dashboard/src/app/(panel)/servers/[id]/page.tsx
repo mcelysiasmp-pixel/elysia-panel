@@ -12,6 +12,7 @@ import { ModsPanel } from "@/components/panel/mods-panel";
 import { SftpPanel } from "@/components/panel/sftp-panel";
 import { FileManagerPanel } from "@/components/panel/file-manager-panel";
 import { StatsPanel } from "@/components/panel/stats-panel";
+import { SettingsPanel } from "@/components/panel/settings-panel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function ServerDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -52,6 +53,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
           <TabsTrigger value="backups">Sauvegardes</TabsTrigger>
           <TabsTrigger value="mods">Mods / Plugins</TabsTrigger>
           <TabsTrigger value="sftp">SFTP</TabsTrigger>
+          <TabsTrigger value="settings">Paramètres</TabsTrigger>
         </TabsList>
         <TabsContent value="console" className="pt-4">
           <ServerConsole serverId={id} />
@@ -67,6 +69,9 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
         </TabsContent>
         <TabsContent value="sftp" className="pt-4">
           {server && <SftpPanel server={server} />}
+        </TabsContent>
+        <TabsContent value="settings" className="pt-4">
+          {server && <SettingsPanel server={server} />}
         </TabsContent>
       </Tabs>
     </div>

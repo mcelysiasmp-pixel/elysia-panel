@@ -19,6 +19,13 @@ export class UsersController {
     });
   }
 
+  // Doit rester déclaré avant @Get(':id') : sinon Express route "lookup"
+  // vers le handler générique par id.
+  @Get('lookup')
+  lookupByEmail(@Query('email') email: string) {
+    return this.users.lookupByEmail(email);
+  }
+
   @Get(':id')
   @RequirePermissions('users.read')
   get(@Param('id') id: string) {

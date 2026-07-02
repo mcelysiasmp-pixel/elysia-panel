@@ -98,9 +98,23 @@ stats live).
 5. `d1541ef` — Gestionnaire de fichiers complet dans le dashboard (liste,
    navigation, upload, mkdir, édition de fichiers texte, download, rename,
    delete). Toute la chaîne testée en réel via de vrais appels HTTP.
-6. (à committer avec cette mise à jour) — Fix race condition
-   `stats:subscribe` (voir section ci-dessus) + fix bug parsing
-   `memory_used_mb` (string int64) + stats live CPU/RAM dans le dashboard.
+6. `b87d327` — Fix race condition `stats:subscribe` (voir section ci-dessus)
+   + fix bug parsing `memory_used_mb` (string int64) + stats live CPU/RAM
+   dans le dashboard.
+7. (à committer avec cette mise à jour) — Onglet Paramètres serveur dans le
+   dashboard : général (nom/description/image/startup/env), réinstaller,
+   allocations réseau (ajout/suppression), sous-utilisateurs
+   (ajout/suppression avec permissions). Nouvel endpoint backend
+   `GET /users/lookup?email=` (accessible à tout utilisateur authentifié,
+   sans `users.read`) : nécessaire pour qu'un propriétaire de serveur (rôle
+   client, pas admin) puisse résoudre l'email d'un ami en `userId` avant de
+   l'ajouter comme sub-user — sans ça, `POST /servers/:id/subusers` était
+   inutilisable depuis le dashboard pour un non-admin (il exige un `userId`,
+   et `GET /users` est admin-only). Toute la chaîne testée en réel : update,
+   reinstall (vérifié que le conteneur est recréé avec la nouvelle commande
+   de démarrage), add/remove allocation, lookup + add/remove sub-user, y
+   compris avec un compte non-admin pour confirmer que `/users/lookup` ne
+   nécessite pas `users.read` alors que `GET /users` reste bloqué.
 
 ## Reste à faire — chantiers dashboard (priorisés avec l'utilisateur)
 
@@ -110,8 +124,8 @@ l'audit initial. Statut mis à jour :
 1. ~~File manager~~ ✅ fait (commit `d1541ef`)
 2. ~~Stats live serveur (CPU/RAM)~~ ✅ fait (voir section bug corrigé
    ci-dessus)
-3. **Settings serveur** (update/reinstall/allocations/subusers) — backend
-   prêt (commit `84ec21c`), **aucune UI dashboard** pour l'exploiter
+3. ~~Settings serveur~~ ✅ fait (update/reinstall/allocations/subusers +
+   nouvel endpoint `/users/lookup`)
 4. **Détail + réponse ticket support** — routes backend `:id`, `:id/reply`,
    `:id/status` existent, non utilisées côté dashboard
 5. **Checkout billing** — pas de flux de paiement Stripe côté dashboard

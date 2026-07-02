@@ -29,6 +29,20 @@ export class UsersService {
     return user;
   }
 
+  // Résolution email -> id accessible à tout utilisateur authentifié (pas
+  // besoin de users.read) : sert à l'ajout de sub-users par un propriétaire
+  // de serveur qui n'a pas accès à la liste complète des comptes. Champs
+  // volontairement minimaux, et correspondance exacte uniquement (pas de
+  // recherche partielle) pour limiter l'énumération de comptes.
+  async lookupByEmail(email: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+      select: { id: true, username: true, email: true },
+    });
+    if (!user) throw new NotFoundException('Aucun utilisateur avec cet email');
+    return user;
+  }
+
   async create(dto: CreateUserDto, actorId: string) {
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
     const user = await this.prisma.user.create({

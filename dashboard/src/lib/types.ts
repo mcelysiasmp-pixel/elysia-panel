@@ -7,6 +7,13 @@ export interface ServerTemplate {
   minMemoryMb: number;
 }
 
+export interface ServerSubUser {
+  id: string;
+  userId: string;
+  permissions: string[];
+  user: { id: string; username: string; email: string };
+}
+
 export interface ServerListItem {
   id: string;
   uuid: string;
@@ -15,12 +22,16 @@ export interface ServerListItem {
   status: string;
   suspended: boolean;
   gameType: string;
+  dockerImage: string;
+  startupCommand: string;
+  environment: Record<string, string>;
   cpuLimitPct: number;
   memoryLimitMb: number;
   diskLimitMb: number;
   node: { id: string; name: string; fqdn?: string };
   template: ServerTemplate;
-  allocations: { ip: string; port: number; isPrimary: boolean }[];
+  allocations: { id: string; ip: string; port: number; isPrimary: boolean }[];
+  subUsers: ServerSubUser[];
   createdAt: string;
 }
 
