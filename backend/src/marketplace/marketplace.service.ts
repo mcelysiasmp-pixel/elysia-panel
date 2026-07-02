@@ -37,18 +37,34 @@ export class MarketplaceService {
     return this.prisma.marketplaceItem
       .create({ data: { ...data, type: data.type as any } })
       .then((item) => {
-        this.audit.log({ actorId, action: 'marketplace.publish', targetType: 'MarketplaceItem', targetId: item.id });
+        this.audit.log({
+          actorId,
+          action: 'marketplace.publish',
+          targetType: 'MarketplaceItem',
+          targetId: item.id,
+        });
         return item;
       });
   }
 
   async incrementDownloads(slug: string) {
-    return this.prisma.marketplaceItem.update({ where: { slug }, data: { downloads: { increment: 1 } } });
+    return this.prisma.marketplaceItem.update({
+      where: { slug },
+      data: { downloads: { increment: 1 } },
+    });
   }
 
   async verify(id: string, actorId: string) {
-    const item = await this.prisma.marketplaceItem.update({ where: { id }, data: { verified: true } });
-    await this.audit.log({ actorId, action: 'marketplace.verify', targetType: 'MarketplaceItem', targetId: id });
+    const item = await this.prisma.marketplaceItem.update({
+      where: { id },
+      data: { verified: true },
+    });
+    await this.audit.log({
+      actorId,
+      action: 'marketplace.verify',
+      targetType: 'MarketplaceItem',
+      targetId: id,
+    });
     return item;
   }
 }

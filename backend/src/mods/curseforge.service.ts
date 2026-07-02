@@ -45,9 +45,12 @@ export class CurseforgeService {
     pageSize?: number;
     index?: number;
   }): Promise<CurseForgeSearchResult> {
-    const { data } = await this.http.get<CurseForgeSearchResult>('/mods/search', {
-      params: { gameId: MINECRAFT_GAME_ID, ...params },
-    });
+    const { data } = await this.http.get<CurseForgeSearchResult>(
+      '/mods/search',
+      {
+        params: { gameId: MINECRAFT_GAME_ID, ...params },
+      },
+    );
     return data;
   }
 
@@ -57,18 +60,24 @@ export class CurseforgeService {
   }
 
   async getFiles(modId: number): Promise<{ data: CurseForgeFile[] }> {
-    const { data } = await this.http.get<{ data: CurseForgeFile[] }>(`/mods/${modId}/files`);
+    const { data } = await this.http.get<{ data: CurseForgeFile[] }>(
+      `/mods/${modId}/files`,
+    );
     return data;
   }
 
   async getFile(modId: number, fileId: number): Promise<CurseForgeFile> {
-    const { data } = await this.http.get<{ data: CurseForgeFile }>(`/mods/${modId}/files/${fileId}`);
+    const { data } = await this.http.get<{ data: CurseForgeFile }>(
+      `/mods/${modId}/files/${fileId}`,
+    );
     return data.data;
   }
 
   async downloadFile(url: string): Promise<Buffer> {
     assertSafeDownloadUrl(url);
-    const { data } = await axios.get<ArrayBuffer>(url, { responseType: 'arraybuffer' });
+    const { data } = await axios.get<ArrayBuffer>(url, {
+      responseType: 'arraybuffer',
+    });
     return Buffer.from(data);
   }
 }

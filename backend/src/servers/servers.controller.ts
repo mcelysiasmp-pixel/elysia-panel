@@ -1,4 +1,12 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+} from '@nestjs/common';
 import { RequirePermissions } from '../common/decorators/permissions.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user';
@@ -30,7 +38,11 @@ export class ServersController {
 
   @Patch(':id')
   @RequirePermissions('servers.update')
-  update(@Param('id') id: string, @Body() dto: UpdateServerDto, @CurrentUser() user: AuthenticatedUser) {
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateServerDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.servers.update(id, dto, user);
   }
 
@@ -42,7 +54,10 @@ export class ServersController {
 
   @Post(':id/allocations')
   @RequirePermissions('servers.update')
-  addAllocation(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+  addAllocation(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.servers.addAllocation(id, user);
   }
 
@@ -82,13 +97,21 @@ export class ServersController {
 
   @Post(':id/command')
   @RequirePermissions('servers.console')
-  sendCommand(@Param('id') id: string, @Body('command') command: string, @CurrentUser() user: AuthenticatedUser) {
+  sendCommand(
+    @Param('id') id: string,
+    @Body('command') command: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.servers.sendCommand(id, command, user);
   }
 
   @Post(':id/suspend')
   @RequirePermissions('servers.suspend')
-  suspend(@Param('id') id: string, @Body('reason') reason: string, @CurrentUser() user: AuthenticatedUser) {
+  suspend(
+    @Param('id') id: string,
+    @Body('reason') reason: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.servers.suspend(id, reason, user.id);
   }
 

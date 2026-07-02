@@ -1,4 +1,13 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { RequirePermissions } from '../common/decorators/permissions.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user';
@@ -40,7 +49,11 @@ export class UsersController {
 
   @Patch(':id')
   @RequirePermissions('users.update')
-  update(@Param('id') id: string, @Body() dto: UpdateUserDto, @CurrentUser() actor: AuthenticatedUser) {
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateUserDto,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
     return this.users.update(id, dto, actor.id);
   }
 
@@ -56,13 +69,21 @@ export class UsersController {
 
   @Post(':id/suspend')
   @RequirePermissions('users.suspend')
-  suspend(@Param('id') id: string, @Body('reason') reason: string, @CurrentUser() actor: AuthenticatedUser) {
+  suspend(
+    @Param('id') id: string,
+    @Body('reason') reason: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
     return this.users.suspend(id, reason, actor.id);
   }
 
   @Post(':id/ban')
   @RequirePermissions('users.ban')
-  ban(@Param('id') id: string, @Body('reason') reason: string, @CurrentUser() actor: AuthenticatedUser) {
+  ban(
+    @Param('id') id: string,
+    @Body('reason') reason: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
     return this.users.ban(id, reason, actor.id);
   }
 

@@ -31,6 +31,8 @@ export function assertSafeDownloadUrl(rawUrl: string): void {
     (host) => url.hostname === host || url.hostname.endsWith(`.${host}`),
   );
   if (!isAllowed) {
-    throw new BadRequestException(`Hôte de téléchargement non autorisé: ${url.hostname}`);
+    throw new BadRequestException(
+      `Hôte de téléchargement non autorisé: ${url.hostname}`,
+    );
   }
 }

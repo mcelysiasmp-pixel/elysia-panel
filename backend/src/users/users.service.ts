@@ -24,7 +24,10 @@ export class UsersService {
   }
 
   async findByIdOrThrow(id: string) {
-    const user = await this.prisma.user.findUnique({ where: { id }, include: { role: true } });
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      include: { role: true },
+    });
     if (!user) throw new NotFoundException('Utilisateur introuvable');
     return user;
   }
@@ -53,20 +56,34 @@ export class UsersService {
         roleId: dto.roleId,
       },
     });
-    await this.audit.log({ actorId, action: 'user.create', targetType: 'User', targetId: user.id });
+    await this.audit.log({
+      actorId,
+      action: 'user.create',
+      targetType: 'User',
+      targetId: user.id,
+    });
     return user;
   }
 
   async update(id: string, dto: UpdateUserDto, actorId: string) {
     const user = await this.prisma.user.update({ where: { id }, data: dto });
-    await this.audit.log({ actorId, action: 'user.update', targetType: 'User', targetId: id, metadata: { ...dto } });
+    await this.audit.log({
+      actorId,
+      action: 'user.update',
+      targetType: 'User',
+      targetId: id,
+      metadata: { ...dto },
+    });
     return user;
   }
 
   async resetPassword(id: string, newPassword: string, actorId: string) {
     const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
     await this.prisma.user.update({ where: { id }, data: { passwordHash } });
-    await this.prisma.refreshToken.updateMany({ where: { userId: id }, data: { revoked: true } });
+    await this.prisma.refreshToken.updateMany({
+      where: { userId: id },
+      data: { revoked: true },
+    });
     await this.audit.log({
       actorId,
       action: 'user.reset_password',
@@ -81,7 +98,10 @@ export class UsersService {
       where: { id },
       data: { status: 'SUSPENDED', suspendedReason: reason },
     });
-    await this.prisma.refreshToken.updateMany({ where: { userId: id }, data: { revoked: true } });
+    await this.prisma.refreshToken.updateMany({
+      where: { userId: id },
+      data: { revoked: true },
+    });
     await this.audit.log({
       actorId,
       action: 'user.suspend',
@@ -98,7 +118,10 @@ export class UsersService {
       where: { id },
       data: { status: 'BANNED', bannedReason: reason },
     });
-    await this.prisma.refreshToken.updateMany({ where: { userId: id }, data: { revoked: true } });
+    await this.prisma.refreshToken.updateMany({
+      where: { userId: id },
+      data: { revoked: true },
+    });
     await this.audit.log({
       actorId,
       action: 'user.ban',
@@ -115,7 +138,12 @@ export class UsersService {
       where: { id },
       data: { status: 'ACTIVE', suspendedReason: null, bannedReason: null },
     });
-    await this.audit.log({ actorId, action: 'user.reactivate', targetType: 'User', targetId: id });
+    await this.audit.log({
+      actorId,
+      action: 'user.reactivate',
+      targetType: 'User',
+      targetId: id,
+    });
     return user;
   }
 

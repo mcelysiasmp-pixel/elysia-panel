@@ -1,5 +1,8 @@
 import { Module } from '@nestjs/common';
-import { PrometheusModule, makeGaugeProvider } from '@willsoto/nestjs-prometheus';
+import {
+  PrometheusModule,
+  makeGaugeProvider,
+} from '@willsoto/nestjs-prometheus';
 import { MonitoringService } from './monitoring.service';
 import { MonitoringController } from './monitoring.controller';
 
@@ -16,9 +19,18 @@ import { MonitoringController } from './monitoring.controller';
   controllers: [MonitoringController],
   providers: [
     MonitoringService,
-    makeGaugeProvider({ name: 'elysia_nodes_online', help: 'Nombre de nodes Elysia en ligne' }),
-    makeGaugeProvider({ name: 'elysia_servers_running', help: 'Nombre de serveurs en cours d\'exécution' }),
-    makeGaugeProvider({ name: 'elysia_servers_total', help: 'Nombre total de serveurs' }),
+    makeGaugeProvider({
+      name: 'elysia_nodes_online',
+      help: 'Nombre de nodes Elysia en ligne',
+    }),
+    makeGaugeProvider({
+      name: 'elysia_servers_running',
+      help: "Nombre de serveurs en cours d'exécution",
+    }),
+    makeGaugeProvider({
+      name: 'elysia_servers_total',
+      help: 'Nombre total de serveurs',
+    }),
   ],
   exports: [MonitoringService],
 })

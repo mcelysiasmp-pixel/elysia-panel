@@ -57,7 +57,9 @@ export default () => ({
     nodeSecret: process.env.NODE_INTERNAL_SECRET ?? 'dev_node_internal_secret',
   },
   backup: {
-    driver: process.env.BACKUP_S3_BUCKET ? (process.env.BACKUP_DRIVER ?? 'S3') : 'LOCAL',
+    driver: process.env.BACKUP_S3_BUCKET
+      ? (process.env.BACKUP_DRIVER ?? 'S3')
+      : 'LOCAL',
     s3: {
       endpoint: process.env.BACKUP_S3_ENDPOINT,
       bucket: process.env.BACKUP_S3_BUCKET,

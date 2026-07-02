@@ -33,7 +33,11 @@ export class ModsController {
     @Query('facets') facets?: string,
     @Query('limit') limit?: string,
   ) {
-    return this.modrinth.search({ query, facets, limit: limit ? parseInt(limit, 10) : undefined });
+    return this.modrinth.search({
+      query,
+      facets,
+      limit: limit ? parseInt(limit, 10) : undefined,
+    });
   }
 
   @Get('mods/modrinth/:projectId/versions')
@@ -82,7 +86,12 @@ export class ModsController {
     @Body('targetDir') targetDir: string | undefined,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.mods.installFromModrinth(serverId, versionId, targetDir ?? 'mods', user);
+    return this.mods.installFromModrinth(
+      serverId,
+      versionId,
+      targetDir ?? 'mods',
+      user,
+    );
   }
 
   @Post('servers/:serverId/mods/curseforge')
@@ -94,7 +103,13 @@ export class ModsController {
     @Body('targetDir') targetDir: string | undefined,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.mods.installFromCurseforge(serverId, modId, fileId, targetDir ?? 'mods', user);
+    return this.mods.installFromCurseforge(
+      serverId,
+      modId,
+      fileId,
+      targetDir ?? 'mods',
+      user,
+    );
   }
 
   @Post('servers/:serverId/mods/marketplace')
@@ -105,7 +120,12 @@ export class ModsController {
     @Body('targetDir') targetDir: string | undefined,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.mods.installFromMarketplace(serverId, slug, targetDir ?? 'plugins', user);
+    return this.mods.installFromMarketplace(
+      serverId,
+      slug,
+      targetDir ?? 'plugins',
+      user,
+    );
   }
 
   @Delete('servers/:serverId/mods/:installedModId')
@@ -116,7 +136,12 @@ export class ModsController {
     @Query('targetDir') targetDir: string | undefined,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.mods.uninstall(serverId, installedModId, targetDir ?? 'mods', user);
+    return this.mods.uninstall(
+      serverId,
+      installedModId,
+      targetDir ?? 'mods',
+      user,
+    );
   }
 
   // --- Modpacks en un clic (étape 10) -----------------------------------
@@ -136,7 +161,9 @@ export class ModsController {
   // CurseForge (manifest.json + overrides/), uploadée directement ici.
   @Post('servers/:serverId/modpacks/curseforge')
   @RequirePermissions('mods.install')
-  @UseInterceptors(FileInterceptor('archive', { limits: { fileSize: 500 * 1024 * 1024 } }))
+  @UseInterceptors(
+    FileInterceptor('archive', { limits: { fileSize: 500 * 1024 * 1024 } }),
+  )
   installCurseforgePack(
     @Param('serverId') serverId: string,
     @UploadedFile() file: Express.Multer.File,

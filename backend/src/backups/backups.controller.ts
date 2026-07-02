@@ -10,25 +10,38 @@ export class BackupsController {
 
   @Get()
   @RequirePermissions('backups.create')
-  list(@Param('serverId') serverId: string, @CurrentUser() user: AuthenticatedUser) {
+  list(
+    @Param('serverId') serverId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.backups.listForServer(serverId, user);
   }
 
   @Post()
   @RequirePermissions('backups.create')
-  create(@Param('serverId') serverId: string, @Body('name') name: string, @CurrentUser() user: AuthenticatedUser) {
+  create(
+    @Param('serverId') serverId: string,
+    @Body('name') name: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.backups.create(serverId, name ?? `backup-${Date.now()}`, user);
   }
 
   @Post(':backupId/restore')
   @RequirePermissions('backups.restore')
-  restore(@Param('backupId') backupId: string, @CurrentUser() user: AuthenticatedUser) {
+  restore(
+    @Param('backupId') backupId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.backups.restore(backupId, user);
   }
 
   @Delete(':backupId')
   @RequirePermissions('backups.delete')
-  delete(@Param('backupId') backupId: string, @CurrentUser() user: AuthenticatedUser) {
+  delete(
+    @Param('backupId') backupId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.backups.delete(backupId, user);
   }
 }

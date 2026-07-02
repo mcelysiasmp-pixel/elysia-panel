@@ -40,9 +40,17 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('login')
   async login(@Body() dto: LoginDto, @Ip() ip: string, @Req() req: Request) {
-    const user = await this.authService.validateLocalUser(dto.email, dto.password);
+    const user = await this.authService.validateLocalUser(
+      dto.email,
+      dto.password,
+    );
     if (!user) throw new UnauthorizedException('Identifiants invalides');
-    return this.authService.login(user.id, dto.totpCode, ip, req.headers['user-agent']);
+    return this.authService.login(
+      user.id,
+      dto.totpCode,
+      ip,
+      req.headers['user-agent'],
+    );
   }
 
   @Public()
@@ -64,12 +72,18 @@ export class AuthController {
   }
 
   @Post('2fa/enable')
-  enableTwoFactor(@CurrentUser() user: AuthenticatedUser, @Body('code') code: string) {
+  enableTwoFactor(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body('code') code: string,
+  ) {
     return this.authService.enableTwoFactor(user.id, code);
   }
 
   @Post('2fa/disable')
-  disableTwoFactor(@CurrentUser() user: AuthenticatedUser, @Body('code') code: string) {
+  disableTwoFactor(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body('code') code: string,
+  ) {
     return this.authService.disableTwoFactor(user.id, code);
   }
 

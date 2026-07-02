@@ -48,7 +48,10 @@ export class NodeClientService implements OnModuleDestroy {
     return this.packageDef;
   }
 
-  private getOrCreateClient(nodeId: string, params: NodeConnectionParams): grpc.Client {
+  private getOrCreateClient(
+    nodeId: string,
+    params: NodeConnectionParams,
+  ): grpc.Client {
     const cached = this.clients.get(nodeId);
     if (cached) return cached;
 
@@ -65,18 +68,27 @@ export class NodeClientService implements OnModuleDestroy {
           )
         : grpc.credentials.createInsecure(); // dev uniquement — mTLS obligatoire en prod (voir installer/)
 
-    const client: grpc.Client = new NodeServiceCtor(`${params.host}:${params.port}`, credentials);
+    const client: grpc.Client = new NodeServiceCtor(
+      `${params.host}:${params.port}`,
+      credentials,
+    );
     this.clients.set(nodeId, client);
     return client;
   }
 
-  async ping(nodeId: string, params: NodeConnectionParams): Promise<{ nonce: string; nodeVersion: string }> {
+  async ping(
+    nodeId: string,
+    params: NodeConnectionParams,
+  ): Promise<{ nonce: string; nodeVersion: string }> {
     const client = this.getOrCreateClient(nodeId, params) as any;
     return new Promise((resolve, reject) => {
-      client.Ping({ nonce: Date.now().toString() }, (err: grpc.ServiceError | null, res: any) => {
-        if (err) return reject(err);
-        resolve({ nonce: res.nonce, nodeVersion: res.node_version });
-      });
+      client.Ping(
+        { nonce: Date.now().toString() },
+        (err: grpc.ServiceError | null, res: any) => {
+          if (err) return reject(err);
+          resolve({ nonce: res.nonce, nodeVersion: res.node_version });
+        },
+      );
     });
   }
 
@@ -93,7 +105,9 @@ export class NodeClientService implements OnModuleDestroy {
       }
       client[method](request, (err: grpc.ServiceError | null, res: TRes) => {
         if (err) {
-          this.logger.error(`gRPC ${method} vers node ${nodeId} a échoué: ${err.message}`);
+          this.logger.error(
+            `gRPC ${method} vers node ${nodeId} a échoué: ${err.message}`,
+          );
           return reject(err);
         }
         resolve(res);
@@ -108,7 +122,11 @@ export class NodeClientService implements OnModuleDestroy {
     params: NodeConnectionParams,
     method: string,
     request: TReq,
-    handlers: { onData: (chunk: TChunk) => void; onEnd?: () => void; onError?: (err: Error) => void },
+    handlers: {
+      onData: (chunk: TChunk) => void;
+      onEnd?: () => void;
+      onError?: (err: Error) => void;
+    },
   ): () => void {
     const client = this.getOrCreateClient(nodeId, params) as any;
     if (typeof client[method] !== 'function') {

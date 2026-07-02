@@ -24,7 +24,13 @@ import { AuditModule } from '../audit/audit.module';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, DiscordStrategy, GoogleStrategy, GithubStrategy],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    DiscordStrategy,
+    GoogleStrategy,
+    GithubStrategy,
+  ],
   exports: [AuthService],
 })
 export class AuthModule {}

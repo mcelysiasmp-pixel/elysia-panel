@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { NodeClientService } from '../grpc-client/node-client.service';
@@ -41,7 +45,12 @@ export class NodesService {
         },
       })
       .then((node) => {
-        this.audit.log({ actorId, action: 'node.create', targetType: 'Node', targetId: node.id });
+        this.audit.log({
+          actorId,
+          action: 'node.create',
+          targetType: 'Node',
+          targetId: node.id,
+        });
         return node;
       });
   }
@@ -49,7 +58,10 @@ export class NodesService {
   async setMaintenance(id: string, enabled: boolean, actorId: string) {
     const node = await this.prisma.node.update({
       where: { id },
-      data: { maintenanceMode: enabled, status: enabled ? 'MAINTENANCE' : 'ONLINE' },
+      data: {
+        maintenanceMode: enabled,
+        status: enabled ? 'MAINTENANCE' : 'ONLINE',
+      },
     });
     await this.audit.log({
       actorId,
@@ -70,33 +82,50 @@ export class NodesService {
     }
     this.nodeClient.disconnect(id);
     await this.prisma.node.delete({ where: { id } });
-    await this.audit.log({ actorId, action: 'node.delete', targetType: 'Node', targetId: id, severity: 'WARNING' });
+    await this.audit.log({
+      actorId,
+      action: 'node.delete',
+      targetType: 'Node',
+      targetId: id,
+      severity: 'WARNING',
+    });
   }
 
   async healthCheck(id: string) {
     const node = await this.findByIdOrThrow(id);
     try {
-      const res = await this.nodeClient.ping(node.id, { host: node.grpcHost, port: node.grpcPort });
+      const res = await this.nodeClient.ping(node.id, {
+        host: node.grpcHost,
+        port: node.grpcPort,
+      });
       await this.prisma.node.update({
         where: { id },
         data: { status: 'ONLINE', lastHeartbeatAt: new Date() },
       });
       return { online: true, ...res };
     } catch (err) {
-      await this.prisma.node.update({ where: { id }, data: { status: 'OFFLINE' } });
+      await this.prisma.node.update({
+        where: { id },
+        data: { status: 'OFFLINE' },
+      });
       return { online: false, error: (err as Error).message };
     }
   }
 
   // Sélectionne le node avec le plus de capacité disponible pour un profil
   // de ressources donné (utilisé par ServersService à la création).
-  async findEligibleNode(requirements: { cpuPct: number; memoryMb: number; diskMb: number }) {
+  async findEligibleNode(requirements: {
+    cpuPct: number;
+    memoryMb: number;
+    diskMb: number;
+  }) {
     const nodes = await this.prisma.node.findMany({
       where: { status: 'ONLINE', maintenanceMode: false },
     });
 
     const eligible = nodes.filter((n) => {
-      const cpuCapacityPct = n.cpuCores * 100 * (1 + n.overallocateCpuPct / 100);
+      const cpuCapacityPct =
+        n.cpuCores * 100 * (1 + n.overallocateCpuPct / 100);
       const memCapacity = n.memoryMb * (1 + n.overallocateMemPct / 100);
       const diskCapacity = n.diskMb * (1 + n.overallocateDiskPct / 100);
       return (
@@ -107,11 +136,16 @@ export class NodesService {
     });
 
     if (eligible.length === 0) {
-      throw new BadRequestException('Aucun node disponible avec suffisamment de capacité');
+      throw new BadRequestException(
+        'Aucun node disponible avec suffisamment de capacité',
+      );
     }
 
     // Le moins chargé proportionnellement en RAM en premier (bin-packing simple)
-    eligible.sort((a, b) => a.memoryAllocatedMb / a.memoryMb - b.memoryAllocatedMb / b.memoryMb);
+    eligible.sort(
+      (a, b) =>
+        a.memoryAllocatedMb / a.memoryMb - b.memoryAllocatedMb / b.memoryMb,
+    );
     return eligible[0];
   }
 }

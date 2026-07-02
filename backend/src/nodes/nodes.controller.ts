@@ -35,13 +35,19 @@ export class NodesController {
 
   @Post(':id/maintenance/enable')
   @RequirePermissions('nodes.maintenance')
-  enableMaintenance(@Param('id') id: string, @CurrentUser() actor: AuthenticatedUser) {
+  enableMaintenance(
+    @Param('id') id: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
     return this.nodes.setMaintenance(id, true, actor.id);
   }
 
   @Post(':id/maintenance/disable')
   @RequirePermissions('nodes.maintenance')
-  disableMaintenance(@Param('id') id: string, @CurrentUser() actor: AuthenticatedUser) {
+  disableMaintenance(
+    @Param('id') id: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
     return this.nodes.setMaintenance(id, false, actor.id);
   }
 

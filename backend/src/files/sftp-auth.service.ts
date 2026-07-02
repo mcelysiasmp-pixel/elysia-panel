@@ -22,7 +22,10 @@ export class SftpAuthService {
     private readonly auth: AuthService,
   ) {}
 
-  async authenticate(username: string, password: string): Promise<SftpAuthResult> {
+  async authenticate(
+    username: string,
+    password: string,
+  ): Promise<SftpAuthResult> {
     const separatorIndex = username.lastIndexOf('.');
     if (separatorIndex <= 0) return { allowed: false };
 
@@ -30,7 +33,10 @@ export class SftpAuthService {
     const serverShort = username.slice(separatorIndex + 1);
     if (serverShort.length < 4) return { allowed: false };
 
-    const user = await this.auth.validateLocalUserByUsername(accountUsername, password);
+    const user = await this.auth.validateLocalUserByUsername(
+      accountUsername,
+      password,
+    );
     if (!user) return { allowed: false };
 
     const candidates = await this.prisma.server.findMany({
@@ -53,7 +59,11 @@ export class SftpAuthService {
       return { allowed: true, serverUuid: server.uuid, readOnly: false };
     }
     if (subUser?.permissions.includes('files.read')) {
-      return { allowed: true, serverUuid: server.uuid, readOnly: !subUser.permissions.includes('files.write') };
+      return {
+        allowed: true,
+        serverUuid: server.uuid,
+        readOnly: !subUser.permissions.includes('files.write'),
+      };
     }
     return { allowed: false };
   }

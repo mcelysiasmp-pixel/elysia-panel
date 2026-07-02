@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { getSocket } from "@/lib/socket";
 import { Card } from "@/components/ui/card";
 
@@ -142,7 +142,7 @@ export function StatsPanel({
   const [cpuHistory, setCpuHistory] = useState<Sample[]>([]);
   const [ramHistory, setRamHistory] = useState<Sample[]>([]);
   const [connected, setConnected] = useState(false);
-  const lastRef = useRef<{ cpu: number; ram: number } | null>(null);
+  const [last, setLast] = useState<{ cpu: number; ram: number } | null>(null);
 
   useEffect(() => {
     const socket = getSocket();
@@ -152,7 +152,7 @@ export function StatsPanel({
       if (evt.serverId !== serverId) return;
       const cpuValue = evt.cpu_usage_pct;
       const ramValue = Number(evt.memory_used_mb);
-      lastRef.current = { cpu: cpuValue, ram: ramValue };
+      setLast({ cpu: cpuValue, ram: ramValue });
       setConnected(true);
       const now = Date.now();
       const cutoff = now - HISTORY_SECONDS * 1000;
@@ -168,8 +168,8 @@ export function StatsPanel({
     };
   }, [serverId]);
 
-  const cpu = lastRef.current?.cpu ?? 0;
-  const ram = lastRef.current?.ram ?? 0;
+  const cpu = last?.cpu ?? 0;
+  const ram = last?.ram ?? 0;
 
   return (
     <div className="flex flex-col gap-3">

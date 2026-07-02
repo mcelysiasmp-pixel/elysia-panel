@@ -16,7 +16,10 @@ export class TemplatesController {
 
   @Post()
   @RequirePermissions('nodes.create')
-  create(@Body() body: Record<string, unknown>, @CurrentUser() actor: AuthenticatedUser) {
+  create(
+    @Body() body: Record<string, unknown>,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
     return this.templates.create(body, actor.id);
   }
 }

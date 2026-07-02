@@ -23,7 +23,10 @@ export class BackupsService {
   // config/configuration.ts — BACKUP_S3_* dans .env). Un seul jeu de
   // credentials pour tout le panel ; suffisant pour ce MVP, à faire évoluer
   // vers une configuration par node/par client si besoin plus tard.
-  private driverAndConfig(): { driver: string; driverConfig: Record<string, string> } {
+  private driverAndConfig(): {
+    driver: string;
+    driverConfig: Record<string, string>;
+  } {
     const driver = this.config.get<string>('backup.driver') ?? 'LOCAL';
     if (driver === 'LOCAL') return { driver, driverConfig: {} };
 
@@ -48,7 +51,10 @@ export class BackupsService {
 
   listForServer(serverId: string, user: AuthenticatedUser) {
     return this.servers.findAccessibleOrThrow(serverId, user).then(() =>
-      this.prisma.backup.findMany({ where: { serverId }, orderBy: { createdAt: 'desc' } }),
+      this.prisma.backup.findMany({
+        where: { serverId },
+        orderBy: { createdAt: 'desc' },
+      }),
     );
   }
 
@@ -60,24 +66,52 @@ export class BackupsService {
       data: { serverId, name, driver: driver as any, status: 'PENDING' },
     });
 
-    this.runBackup(backup.id, server.nodeId, server.uuid, server.node.grpcHost, server.node.grpcPort).catch((err) =>
+    this.runBackup(
+      backup.id,
+      server.nodeId,
+      server.uuid,
+      server.node.grpcHost,
+      server.node.grpcPort,
+    ).catch((err) =>
       this.logger.error(`Backup ${backup.id} a échoué: ${err.message}`),
     );
 
-    await this.audit.log({ actorId: user.id, action: 'backup.create', targetType: 'Server', targetId: serverId });
+    await this.audit.log({
+      actorId: user.id,
+      action: 'backup.create',
+      targetType: 'Server',
+      targetId: serverId,
+    });
     return backup;
   }
 
-  private async runBackup(backupId: string, nodeId: string, serverUuid: string, grpcHost: string, grpcPort: number) {
-    await this.prisma.backup.update({ where: { id: backupId }, data: { status: 'IN_PROGRESS' } });
+  private async runBackup(
+    backupId: string,
+    nodeId: string,
+    serverUuid: string,
+    grpcHost: string,
+    grpcPort: number,
+  ) {
+    await this.prisma.backup.update({
+      where: { id: backupId },
+      data: { status: 'IN_PROGRESS' },
+    });
     const { driver, driverConfig } = this.driverAndConfig();
     try {
-      const res = await this.nodeClient.call<any, { success: boolean; message: string; size_bytes: string; checksum: string }>(
-        nodeId,
-        { host: grpcHost, port: grpcPort },
-        'CreateBackup',
-        { server_uuid: serverUuid, backup_id: backupId, driver, driver_config: driverConfig },
-      );
+      const res = await this.nodeClient.call<
+        any,
+        {
+          success: boolean;
+          message: string;
+          size_bytes: string;
+          checksum: string;
+        }
+      >(nodeId, { host: grpcHost, port: grpcPort }, 'CreateBackup', {
+        server_uuid: serverUuid,
+        backup_id: backupId,
+        driver,
+        driver_config: driverConfig,
+      });
       await this.prisma.backup.update({
         where: { id: backupId },
         data: {
@@ -85,7 +119,8 @@ export class BackupsService {
           failReason: res.success ? undefined : res.message,
           sizeBytes: res.size_bytes ? BigInt(res.size_bytes) : undefined,
           checksum: res.checksum,
-          remotePath: driver !== 'LOCAL' ? `${serverUuid}/${backupId}.tar.gz` : undefined,
+          remotePath:
+            driver !== 'LOCAL' ? `${serverUuid}/${backupId}.tar.gz` : undefined,
           completedAt: new Date(),
         },
       });
@@ -104,8 +139,14 @@ export class BackupsService {
     });
     await this.servers.findAccessibleOrThrow(backup.serverId, user);
 
-    await this.prisma.server.update({ where: { id: backup.serverId }, data: { status: 'RESTORING' } });
-    await this.prisma.backup.update({ where: { id: backupId }, data: { status: 'RESTORING' } });
+    await this.prisma.server.update({
+      where: { id: backup.serverId },
+      data: { status: 'RESTORING' },
+    });
+    await this.prisma.backup.update({
+      where: { id: backupId },
+      data: { status: 'RESTORING' },
+    });
 
     const { driverConfig } = this.driverAndConfig();
     await this.nodeClient.call(
@@ -121,8 +162,14 @@ export class BackupsService {
       },
     );
 
-    await this.prisma.server.update({ where: { id: backup.serverId }, data: { status: 'OFFLINE' } });
-    await this.prisma.backup.update({ where: { id: backupId }, data: { status: 'COMPLETED' } });
+    await this.prisma.server.update({
+      where: { id: backup.serverId },
+      data: { status: 'OFFLINE' },
+    });
+    await this.prisma.backup.update({
+      where: { id: backupId },
+      data: { status: 'COMPLETED' },
+    });
     await this.audit.log({
       actorId: user.id,
       action: 'backup.restore',
@@ -141,16 +188,26 @@ export class BackupsService {
     await this.servers.findAccessibleOrThrow(backup.serverId, user);
 
     const { driverConfig } = this.driverAndConfig();
-    await this.nodeClient.call(backup.server.nodeId, { host: backup.server.node.grpcHost, port: backup.server.node.grpcPort }, 'DeleteBackup', {
-      server_uuid: backup.server.uuid,
-      backup_id: backup.id,
-      remote_path: backup.remotePath ?? '',
-      driver: backup.driver,
-      driver_config: backup.driver === 'LOCAL' ? {} : driverConfig,
-    });
+    await this.nodeClient.call(
+      backup.server.nodeId,
+      { host: backup.server.node.grpcHost, port: backup.server.node.grpcPort },
+      'DeleteBackup',
+      {
+        server_uuid: backup.server.uuid,
+        backup_id: backup.id,
+        remote_path: backup.remotePath ?? '',
+        driver: backup.driver,
+        driver_config: backup.driver === 'LOCAL' ? {} : driverConfig,
+      },
+    );
 
     await this.prisma.backup.delete({ where: { id: backupId } });
-    await this.audit.log({ actorId: user.id, action: 'backup.delete', targetType: 'Server', targetId: backup.serverId });
+    await this.audit.log({
+      actorId: user.id,
+      action: 'backup.delete',
+      targetType: 'Server',
+      targetId: backup.serverId,
+    });
   }
 
   generateBackupId() {

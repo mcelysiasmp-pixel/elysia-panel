@@ -22,20 +22,33 @@ export class SupportController {
 
   @Post()
   @RequirePermissions('support.create')
-  create(@Body('subject') subject: string, @Body('message') message: string, @CurrentUser() user: AuthenticatedUser) {
+  create(
+    @Body('subject') subject: string,
+    @Body('message') message: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.support.create(subject, message, user.id);
   }
 
   @Post(':id/reply')
   @RequirePermissions('support.create')
-  reply(@Param('id') id: string, @Body('body') body: string, @CurrentUser() user: AuthenticatedUser) {
-    const isStaff = user.permissions.includes('*') || user.permissions.includes('support.reply');
+  reply(
+    @Param('id') id: string,
+    @Body('body') body: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const isStaff =
+      user.permissions.includes('*') ||
+      user.permissions.includes('support.reply');
     return this.support.reply(id, body, user.id, isStaff);
   }
 
   @Post(':id/status')
   @RequirePermissions('support.reply')
-  setStatus(@Param('id') id: string, @Body('status') status: 'OPEN' | 'PENDING' | 'RESOLVED' | 'CLOSED') {
+  setStatus(
+    @Param('id') id: string,
+    @Body('status') status: 'OPEN' | 'PENDING' | 'RESOLVED' | 'CLOSED',
+  ) {
     return this.support.setStatus(id, status);
   }
 }

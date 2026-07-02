@@ -29,10 +29,16 @@ export class ServersService {
   ) {}
 
   listForUser(user: AuthenticatedUser) {
-    const isAdmin = user.permissions.includes('*') || user.permissions.includes('servers.read.any');
+    const isAdmin =
+      user.permissions.includes('*') ||
+      user.permissions.includes('servers.read.any');
     return this.prisma.server.findMany({
       where: isAdmin ? undefined : { ownerId: user.id },
-      include: { node: { select: { id: true, name: true } }, template: true, allocations: true },
+      include: {
+        node: { select: { id: true, name: true } },
+        template: true,
+        allocations: true,
+      },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -44,12 +50,18 @@ export class ServersService {
         node: true,
         template: true,
         allocations: true,
-        subUsers: { include: { user: { select: { id: true, username: true, email: true } } } },
+        subUsers: {
+          include: {
+            user: { select: { id: true, username: true, email: true } },
+          },
+        },
       },
     });
     if (!server) throw new NotFoundException('Serveur introuvable');
 
-    const isAdmin = user.permissions.includes('*') || user.permissions.includes('servers.read.any');
+    const isAdmin =
+      user.permissions.includes('*') ||
+      user.permissions.includes('servers.read.any');
     const isOwner = server.ownerId === user.id;
     const isSubUser = server.subUsers.some((su) => su.userId === user.id);
     if (!isAdmin && !isOwner && !isSubUser) {
@@ -64,13 +76,22 @@ export class ServersService {
     // pourrait créer des serveurs facturés/attribués à un autre compte.
     // Vérifié avant tout travail (lookup template/node) par principe de
     // fail-fast sur l'autorisation.
-    if (dto.ownerId && dto.ownerId !== actor.id && !actor.permissions.includes('*')) {
-      throw new ForbiddenException("Seul un administrateur peut créer un serveur pour un autre utilisateur");
+    if (
+      dto.ownerId &&
+      dto.ownerId !== actor.id &&
+      !actor.permissions.includes('*')
+    ) {
+      throw new ForbiddenException(
+        'Seul un administrateur peut créer un serveur pour un autre utilisateur',
+      );
     }
     const ownerId = dto.ownerId ?? actor.id;
 
-    const template = await this.prisma.serverTemplate.findUnique({ where: { id: dto.templateId } });
-    if (!template) throw new BadRequestException('Template de serveur introuvable');
+    const template = await this.prisma.serverTemplate.findUnique({
+      where: { id: dto.templateId },
+    });
+    if (!template)
+      throw new BadRequestException('Template de serveur introuvable');
 
     const node = await this.nodes.findEligibleNode({
       cpuPct: dto.cpuLimitPct,
@@ -112,7 +133,13 @@ export class ServersService {
 
       const port = await this.allocatePort(tx, node.id);
       await tx.networkAllocation.create({
-        data: { nodeId: node.id, ip: '0.0.0.0', port, serverId: created.id, isPrimary: true },
+        data: {
+          nodeId: node.id,
+          ip: '0.0.0.0',
+          port,
+          serverId: created.id,
+          isPrimary: true,
+        },
       });
 
       return { ...created, dataPath, port };
@@ -129,14 +156,26 @@ export class ServersService {
     // Appel gRPC best-effort : le daemon peut ne pas être joignable en dev,
     // le serveur reste en base en statut INSTALL_FAILED le cas échéant, pour
     // reprise manuelle (bouton "réinstaller").
-    this.provisionOnNode(server.id, node.id, node.grpcHost, node.grpcPort).catch((err) => {
-      this.logger.warn(`Provisioning gRPC pour ${server.id} a échoué: ${err.message}`);
+    this.provisionOnNode(
+      server.id,
+      node.id,
+      node.grpcHost,
+      node.grpcPort,
+    ).catch((err) => {
+      this.logger.warn(
+        `Provisioning gRPC pour ${server.id} a échoué: ${err.message}`,
+      );
     });
 
     return server;
   }
 
-  private async provisionOnNode(serverId: string, nodeId: string, host: string, port: number) {
+  private async provisionOnNode(
+    serverId: string,
+    nodeId: string,
+    host: string,
+    port: number,
+  ) {
     const server = await this.prisma.server.findUniqueOrThrow({
       where: { id: serverId },
       include: { allocations: true, template: true },
@@ -152,17 +191,31 @@ export class ServersService {
         swap_limit_mb: server.swapLimitMb,
         io_weight: server.ioWeight,
         environment: server.environment as Record<string, string>,
-        ports: server.allocations.map((a) => ({ ip: a.ip, port: a.port, protocol: 'tcp' })),
+        ports: server.allocations.map((a) => ({
+          ip: a.ip,
+          port: a.port,
+          protocol: 'tcp',
+        })),
         install_script: server.template.installScript ?? '',
       });
-      await this.prisma.server.update({ where: { id: serverId }, data: { status: 'OFFLINE' } });
+      await this.prisma.server.update({
+        where: { id: serverId },
+        data: { status: 'OFFLINE' },
+      });
     } catch (err) {
-      await this.prisma.server.update({ where: { id: serverId }, data: { status: 'INSTALL_FAILED' } });
+      await this.prisma.server.update({
+        where: { id: serverId },
+        data: { status: 'INSTALL_FAILED' },
+      });
       throw err;
     }
   }
 
-  async powerAction(id: string, action: 'start' | 'stop' | 'restart' | 'kill', actor: AuthenticatedUser) {
+  async powerAction(
+    id: string,
+    action: 'start' | 'stop' | 'restart' | 'kill',
+    actor: AuthenticatedUser,
+  ) {
     const server = await this.findAccessibleOrThrow(id, actor);
     if (server.suspended) throw new BadRequestException('Serveur suspendu');
 
@@ -173,11 +226,17 @@ export class ServersService {
       kill: 'KillServer',
     }[action];
 
-    const optimisticStatus = { start: 'STARTING', stop: 'STOPPING', restart: 'STARTING', kill: 'OFFLINE' }[
-      action
-    ] as 'STARTING' | 'STOPPING' | 'OFFLINE';
+    const optimisticStatus = {
+      start: 'STARTING',
+      stop: 'STOPPING',
+      restart: 'STARTING',
+      kill: 'OFFLINE',
+    }[action] as 'STARTING' | 'STOPPING' | 'OFFLINE';
 
-    await this.prisma.server.update({ where: { id }, data: { status: optimisticStatus } });
+    await this.prisma.server.update({
+      where: { id },
+      data: { status: optimisticStatus },
+    });
 
     await this.nodeClient.call(
       server.nodeId,
@@ -227,7 +286,12 @@ export class ServersService {
       where: { id },
       data: { suspended: false, suspendedReason: null, status: 'OFFLINE' },
     });
-    await this.audit.log({ actorId, action: 'server.unsuspend', targetType: 'Server', targetId: id });
+    await this.audit.log({
+      actorId,
+      action: 'server.unsuspend',
+      targetType: 'Server',
+      targetId: id,
+    });
     return server;
   }
 
@@ -242,7 +306,9 @@ export class ServersService {
         { server_uuid: server.uuid },
       );
     } catch (err) {
-      this.logger.warn(`Suppression distante a échoué pour ${id}: ${(err as Error).message}`);
+      this.logger.warn(
+        `Suppression distante a échoué pour ${id}: ${(err as Error).message}`,
+      );
     }
 
     await this.prisma.$transaction([
@@ -307,12 +373,24 @@ export class ServersService {
         swap_limit_mb: server.swapLimitMb,
         io_weight: server.ioWeight,
         environment: server.environment as Record<string, string>,
-        ports: server.allocations.map((a) => ({ ip: a.ip, port: a.port, protocol: 'tcp' })),
+        ports: server.allocations.map((a) => ({
+          ip: a.ip,
+          port: a.port,
+          protocol: 'tcp',
+        })),
         install_script: server.template.installScript ?? '',
       },
     );
-    await this.prisma.server.update({ where: { id }, data: { status: 'OFFLINE' } });
-    await this.audit.log({ actorId: actor.id, action: 'server.reinstall', targetType: 'Server', targetId: id });
+    await this.prisma.server.update({
+      where: { id },
+      data: { status: 'OFFLINE' },
+    });
+    await this.audit.log({
+      actorId: actor.id,
+      action: 'server.reinstall',
+      targetType: 'Server',
+      targetId: id,
+    });
     return { success: true };
   }
 
@@ -321,7 +399,13 @@ export class ServersService {
     const allocation = await this.prisma.$transaction(async (tx) => {
       const port = await this.allocatePort(tx, server.nodeId);
       return tx.networkAllocation.create({
-        data: { nodeId: server.nodeId, ip: '0.0.0.0', port, serverId, isPrimary: false },
+        data: {
+          nodeId: server.nodeId,
+          ip: '0.0.0.0',
+          port,
+          serverId,
+          isPrimary: false,
+        },
       });
     });
     await this.audit.log({
@@ -334,11 +418,21 @@ export class ServersService {
     return allocation;
   }
 
-  async removeAllocation(serverId: string, allocationId: string, actor: AuthenticatedUser) {
+  async removeAllocation(
+    serverId: string,
+    allocationId: string,
+    actor: AuthenticatedUser,
+  ) {
     await this.findAccessibleOrThrow(serverId, actor);
-    const allocation = await this.prisma.networkAllocation.findUnique({ where: { id: allocationId } });
-    if (!allocation || allocation.serverId !== serverId) throw new NotFoundException('Allocation introuvable');
-    if (allocation.isPrimary) throw new BadRequestException("Impossible de supprimer l'allocation primaire");
+    const allocation = await this.prisma.networkAllocation.findUnique({
+      where: { id: allocationId },
+    });
+    if (!allocation || allocation.serverId !== serverId)
+      throw new NotFoundException('Allocation introuvable');
+    if (allocation.isPrimary)
+      throw new BadRequestException(
+        "Impossible de supprimer l'allocation primaire",
+      );
     await this.prisma.networkAllocation.delete({ where: { id: allocationId } });
     await this.audit.log({
       actorId: actor.id,
@@ -349,10 +443,17 @@ export class ServersService {
     });
   }
 
-  async addSubUser(serverId: string, userId: string, permissions: string[], actor: AuthenticatedUser) {
+  async addSubUser(
+    serverId: string,
+    userId: string,
+    permissions: string[],
+    actor: AuthenticatedUser,
+  ) {
     const server = await this.findAccessibleOrThrow(serverId, actor);
     if (server.ownerId !== actor.id && !actor.permissions.includes('*')) {
-      throw new ForbiddenException('Seul le propriétaire peut gérer les sous-utilisateurs');
+      throw new ForbiddenException(
+        'Seul le propriétaire peut gérer les sous-utilisateurs',
+      );
     }
     return this.prisma.serverSubUser.upsert({
       where: { serverId_userId: { serverId, userId } },
@@ -361,17 +462,29 @@ export class ServersService {
     });
   }
 
-  async removeSubUser(serverId: string, userId: string, actor: AuthenticatedUser) {
+  async removeSubUser(
+    serverId: string,
+    userId: string,
+    actor: AuthenticatedUser,
+  ) {
     const server = await this.findAccessibleOrThrow(serverId, actor);
     if (server.ownerId !== actor.id && !actor.permissions.includes('*')) {
-      throw new ForbiddenException('Seul le propriétaire peut gérer les sous-utilisateurs');
+      throw new ForbiddenException(
+        'Seul le propriétaire peut gérer les sous-utilisateurs',
+      );
     }
-    await this.prisma.serverSubUser.delete({ where: { serverId_userId: { serverId, userId } } });
+    await this.prisma.serverSubUser.delete({
+      where: { serverId_userId: { serverId, userId } },
+    });
   }
 
   private async allocatePort(tx: Prisma.TransactionClient, nodeId: string) {
     const used = await tx.networkAllocation.findMany({
-      where: { nodeId, ip: '0.0.0.0', port: { gte: PORT_RANGE_START, lte: PORT_RANGE_END } },
+      where: {
+        nodeId,
+        ip: '0.0.0.0',
+        port: { gte: PORT_RANGE_START, lte: PORT_RANGE_END },
+      },
       select: { port: true },
     });
     const usedPorts = new Set(used.map((u) => u.port));

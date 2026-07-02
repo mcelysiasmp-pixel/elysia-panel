@@ -49,9 +49,12 @@ export class ConsoleGateway implements OnGatewayInit, OnGatewayDisconnect {
   afterInit(server: Server) {
     server.use(async (socket: AuthedSocket, next) => {
       try {
-        const token = socket.handshake.auth?.token ?? socket.handshake.query?.token;
-        if (typeof token !== 'string') throw new UnauthorizedException('Token manquant');
-        socket.data.user = await this.authService.resolveUserFromAccessToken(token);
+        const token =
+          socket.handshake.auth?.token ?? socket.handshake.query?.token;
+        if (typeof token !== 'string')
+          throw new UnauthorizedException('Token manquant');
+        socket.data.user =
+          await this.authService.resolveUserFromAccessToken(token);
         socket.data.cancelStreams = new Map();
         next();
       } catch (err) {
@@ -67,9 +70,15 @@ export class ConsoleGateway implements OnGatewayInit, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('console:subscribe')
-  async subscribeConsole(@ConnectedSocket() socket: AuthedSocket, @MessageBody() data: { serverId: string }) {
+  async subscribeConsole(
+    @ConnectedSocket() socket: AuthedSocket,
+    @MessageBody() data: { serverId: string },
+  ) {
     const user = socket.data.user!;
-    const server = await this.serversService.findAccessibleOrThrow(data.serverId, user);
+    const server = await this.serversService.findAccessibleOrThrow(
+      data.serverId,
+      user,
+    );
 
     socket.data.cancelStreams?.get(`console:${server.id}`)?.();
 
@@ -79,8 +88,13 @@ export class ConsoleGateway implements OnGatewayInit, OnGatewayDisconnect {
       'StreamConsole',
       { server_uuid: server.uuid },
       {
-        onData: (chunk: any) => socket.emit('console:line', { serverId: server.id, ...chunk }),
-        onError: (err) => socket.emit('console:error', { serverId: server.id, message: err.message }),
+        onData: (chunk: any) =>
+          socket.emit('console:line', { serverId: server.id, ...chunk }),
+        onError: (err) =>
+          socket.emit('console:error', {
+            serverId: server.id,
+            message: err.message,
+          }),
         onEnd: () => socket.emit('console:closed', { serverId: server.id }),
       },
     );
@@ -89,22 +103,34 @@ export class ConsoleGateway implements OnGatewayInit, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('console:unsubscribe')
-  unsubscribeConsole(@ConnectedSocket() socket: AuthedSocket, @MessageBody() data: { serverId: string }) {
+  unsubscribeConsole(
+    @ConnectedSocket() socket: AuthedSocket,
+    @MessageBody() data: { serverId: string },
+  ) {
     socket.data.cancelStreams?.get(`console:${data.serverId}`)?.();
     socket.data.cancelStreams?.delete(`console:${data.serverId}`);
     return { unsubscribed: true };
   }
 
   @SubscribeMessage('console:send')
-  async sendCommand(@ConnectedSocket() socket: AuthedSocket, @MessageBody() data: { serverId: string; command: string }) {
+  async sendCommand(
+    @ConnectedSocket() socket: AuthedSocket,
+    @MessageBody() data: { serverId: string; command: string },
+  ) {
     const user = socket.data.user!;
     return this.serversService.sendCommand(data.serverId, data.command, user);
   }
 
   @SubscribeMessage('stats:subscribe')
-  async subscribeStats(@ConnectedSocket() socket: AuthedSocket, @MessageBody() data: { serverId: string }) {
+  async subscribeStats(
+    @ConnectedSocket() socket: AuthedSocket,
+    @MessageBody() data: { serverId: string },
+  ) {
     const user = socket.data.user!;
-    const server = await this.serversService.findAccessibleOrThrow(data.serverId, user);
+    const server = await this.serversService.findAccessibleOrThrow(
+      data.serverId,
+      user,
+    );
 
     socket.data.cancelStreams?.get(`stats:${server.id}`)?.();
 
@@ -114,8 +140,13 @@ export class ConsoleGateway implements OnGatewayInit, OnGatewayDisconnect {
       'StreamStats',
       { server_uuid: server.uuid },
       {
-        onData: (chunk: any) => socket.emit('stats:update', { serverId: server.id, ...chunk }),
-        onError: (err) => socket.emit('stats:error', { serverId: server.id, message: err.message }),
+        onData: (chunk: any) =>
+          socket.emit('stats:update', { serverId: server.id, ...chunk }),
+        onError: (err) =>
+          socket.emit('stats:error', {
+            serverId: server.id,
+            message: err.message,
+          }),
       },
     );
     socket.data.cancelStreams?.set(`stats:${server.id}`, cancel);
@@ -123,7 +154,10 @@ export class ConsoleGateway implements OnGatewayInit, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('stats:unsubscribe')
-  unsubscribeStats(@ConnectedSocket() socket: AuthedSocket, @MessageBody() data: { serverId: string }) {
+  unsubscribeStats(
+    @ConnectedSocket() socket: AuthedSocket,
+    @MessageBody() data: { serverId: string },
+  ) {
     socket.data.cancelStreams?.get(`stats:${data.serverId}`)?.();
     socket.data.cancelStreams?.delete(`stats:${data.serverId}`);
     return { unsubscribed: true };

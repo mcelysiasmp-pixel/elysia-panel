@@ -37,7 +37,12 @@ export class AuditService {
     });
   }
 
-  async list(params: { skip?: number; take?: number; actorId?: string; targetType?: string }) {
+  async list(params: {
+    skip?: number;
+    take?: number;
+    actorId?: string;
+    targetType?: string;
+  }) {
     return this.prisma.auditLog.findMany({
       where: {
         actorId: params.actorId,

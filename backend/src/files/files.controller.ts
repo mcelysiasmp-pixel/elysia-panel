@@ -1,4 +1,14 @@
-import { Body, Controller, Get, Param, Post, Query, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  Res,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { RequirePermissions } from '../common/decorators/permissions.decorator';
@@ -12,7 +22,11 @@ export class FilesController {
 
   @Get()
   @RequirePermissions('files.read')
-  list(@Param('serverId') serverId: string, @Query('path') path: string | undefined, @CurrentUser() user: AuthenticatedUser) {
+  list(
+    @Param('serverId') serverId: string,
+    @Query('path') path: string | undefined,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.files.list(serverId, path ?? '', user);
   }
 
@@ -27,13 +41,18 @@ export class FilesController {
     const content = await this.files.read(serverId, path, user);
     const filename = path.split('/').pop() || 'download';
     res.setHeader('Content-Type', 'application/octet-stream');
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${encodeURIComponent(filename)}"`,
+    );
     res.send(content);
   }
 
   @Post('upload')
   @RequirePermissions('files.write')
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 500 * 1024 * 1024 } }))
+  @UseInterceptors(
+    FileInterceptor('file', { limits: { fileSize: 500 * 1024 * 1024 } }),
+  )
   upload(
     @Param('serverId') serverId: string,
     @Body('path') path: string,
@@ -46,7 +65,11 @@ export class FilesController {
 
   @Post('mkdir')
   @RequirePermissions('files.write')
-  mkdir(@Param('serverId') serverId: string, @Body('path') path: string, @CurrentUser() user: AuthenticatedUser) {
+  mkdir(
+    @Param('serverId') serverId: string,
+    @Body('path') path: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.files.mkdir(serverId, path, user);
   }
 
@@ -58,12 +81,21 @@ export class FilesController {
     @Body('content') content: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.files.write(serverId, path, Buffer.from(content ?? '', 'utf-8'), user);
+    return this.files.write(
+      serverId,
+      path,
+      Buffer.from(content ?? '', 'utf-8'),
+      user,
+    );
   }
 
   @Post('delete')
   @RequirePermissions('files.write')
-  delete(@Param('serverId') serverId: string, @Body('path') path: string, @CurrentUser() user: AuthenticatedUser) {
+  delete(
+    @Param('serverId') serverId: string,
+    @Body('path') path: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.files.delete(serverId, path, user);
   }
 

@@ -12,25 +12,54 @@ export class BillingService {
   // --- Produits / Plans --------------------------------------------------
 
   listProducts() {
-    return this.prisma.product.findMany({ where: { active: true }, include: { plans: { where: { active: true } } } });
+    return this.prisma.product.findMany({
+      where: { active: true },
+      include: { plans: { where: { active: true } } },
+    });
   }
 
-  createProduct(name: string, description: string | undefined, actorId: string) {
-    return this.prisma.product.create({ data: { name, description } }).then((p) => {
-      this.audit.log({ actorId, action: 'billing.product.create', targetType: 'Product', targetId: p.id });
-      return p;
-    });
+  createProduct(
+    name: string,
+    description: string | undefined,
+    actorId: string,
+  ) {
+    return this.prisma.product
+      .create({ data: { name, description } })
+      .then((p) => {
+        this.audit.log({
+          actorId,
+          action: 'billing.product.create',
+          targetType: 'Product',
+          targetId: p.id,
+        });
+        return p;
+      });
   }
 
   createPlan(
     productId: string,
-    data: { name: string; priceCents: number; currency: string; billingCycle: string; cpuLimitPct: number; memoryLimitMb: number; diskLimitMb: number },
+    data: {
+      name: string;
+      priceCents: number;
+      currency: string;
+      billingCycle: string;
+      cpuLimitPct: number;
+      memoryLimitMb: number;
+      diskLimitMb: number;
+    },
     actorId: string,
   ) {
     return this.prisma.plan
-      .create({ data: { productId, ...data, billingCycle: data.billingCycle as any } })
+      .create({
+        data: { productId, ...data, billingCycle: data.billingCycle as any },
+      })
       .then((plan) => {
-        this.audit.log({ actorId, action: 'billing.plan.create', targetType: 'Plan', targetId: plan.id });
+        this.audit.log({
+          actorId,
+          action: 'billing.plan.create',
+          targetType: 'Plan',
+          targetId: plan.id,
+        });
         return plan;
       });
   }
@@ -38,11 +67,22 @@ export class BillingService {
   // --- Coupons -------------------------------------------------------------
 
   createCoupon(
-    data: { code: string; percentOff?: number; amountOffCents?: number; maxRedemptions?: number; expiresAt?: Date },
+    data: {
+      code: string;
+      percentOff?: number;
+      amountOffCents?: number;
+      maxRedemptions?: number;
+      expiresAt?: Date;
+    },
     actorId: string,
   ) {
     return this.prisma.coupon.create({ data }).then((coupon) => {
-      this.audit.log({ actorId, action: 'billing.coupon.create', targetType: 'Coupon', targetId: coupon.id });
+      this.audit.log({
+        actorId,
+        action: 'billing.coupon.create',
+        targetType: 'Coupon',
+        targetId: coupon.id,
+      });
       return coupon;
     });
   }
@@ -51,22 +91,32 @@ export class BillingService {
     const coupon = await this.prisma.coupon.findUnique({ where: { code } });
     if (!coupon || !coupon.active) return null;
     if (coupon.expiresAt && coupon.expiresAt < new Date()) return null;
-    if (coupon.maxRedemptions && coupon.timesRedeemed >= coupon.maxRedemptions) return null;
+    if (coupon.maxRedemptions && coupon.timesRedeemed >= coupon.maxRedemptions)
+      return null;
     return coupon;
   }
 
   // --- Abonnements / Factures ------------------------------------------
 
   listInvoicesForUser(userId: string) {
-    return this.prisma.invoice.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } });
+    return this.prisma.invoice.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
   }
 
   listSubscriptionsForUser(userId: string) {
-    return this.prisma.subscription.findMany({ where: { userId }, include: { plan: { include: { product: true } } } });
+    return this.prisma.subscription.findMany({
+      where: { userId },
+      include: { plan: { include: { product: true } } },
+    });
   }
 
   async refundInvoice(invoiceId: string, actorId: string) {
-    const invoice = await this.prisma.invoice.update({ where: { id: invoiceId }, data: { status: 'VOID' } });
+    const invoice = await this.prisma.invoice.update({
+      where: { id: invoiceId },
+      data: { status: 'VOID' },
+    });
     await this.audit.log({
       actorId,
       action: 'billing.invoice.refund',

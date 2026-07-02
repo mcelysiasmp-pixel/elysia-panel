@@ -13,7 +13,12 @@ import { PermissionsGuard } from './auth/guards/permissions.guard';
 function assertProductionSecretsAreSet() {
   const isProd = (process.env.ELYSIA_ENV ?? 'development') === 'production';
   if (!isProd) return;
-  const insecureDefaults = ['dev_access_secret', 'dev_refresh_secret', undefined, ''];
+  const insecureDefaults = [
+    'dev_access_secret',
+    'dev_refresh_secret',
+    undefined,
+    '',
+  ];
   if (
     insecureDefaults.includes(process.env.JWT_ACCESS_SECRET) ||
     insecureDefaults.includes(process.env.JWT_REFRESH_SECRET)
@@ -38,16 +43,25 @@ async function bootstrap() {
   app.use(helmet());
   app.setGlobalPrefix('api');
   app.useGlobalPipes(
-    new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }),
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      forbidNonWhitelisted: true,
+    }),
   );
   app.useGlobalFilters(new HttpExceptionFilter());
 
   const reflector = app.get(Reflector);
-  app.useGlobalGuards(new JwtAuthGuard(reflector), new PermissionsGuard(reflector));
+  app.useGlobalGuards(
+    new JwtAuthGuard(reflector),
+    new PermissionsGuard(reflector),
+  );
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Elysia Panel API')
-    .setDescription('API REST du Backend Elysia Panel — voir sdk/typescript pour un client généré.')
+    .setDescription(
+      'API REST du Backend Elysia Panel — voir sdk/typescript pour un client généré.',
+    )
     .setVersion('0.1.0')
     .addBearerAuth()
     .build();

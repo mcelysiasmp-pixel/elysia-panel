@@ -42,10 +42,12 @@ export class AuthService {
       where: { OR: [{ email: dto.email }, { username: dto.username }] },
     });
     if (existing) {
-      throw new ConflictException('Email ou nom d\'utilisateur déjà utilisé');
+      throw new ConflictException("Email ou nom d'utilisateur déjà utilisé");
     }
 
-    const clientRole = await this.prisma.role.findUnique({ where: { name: 'client' } });
+    const clientRole = await this.prisma.role.findUnique({
+      where: { name: 'client' },
+    });
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
 
     const user = await this.prisma.user.create({
@@ -80,7 +82,9 @@ export class AuthService {
   async validateLocalUserByUsername(username: string, password: string) {
     const user = await this.prisma.user.findUnique({
       where: { username },
-      include: { role: { include: { permissions: { include: { permission: true } } } } },
+      include: {
+        role: { include: { permissions: { include: { permission: true } } } },
+      },
     });
     if (!user || !user.passwordHash || user.status !== 'ACTIVE') return null;
     const valid = await bcrypt.compare(password, user.passwordHash);
@@ -88,15 +92,23 @@ export class AuthService {
     return { ...user, permissions: this.permissionsForRole(user.role) };
   }
 
-  async login(userId: string, totpCode: string | undefined, ip?: string, userAgent?: string) {
-    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+  async login(
+    userId: string,
+    totpCode: string | undefined,
+    ip?: string,
+    userAgent?: string,
+  ) {
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+    });
 
     if (user.twoFactorEnabled) {
       if (!totpCode) {
         return { requiresTwoFactor: true };
       }
       const valid = this.verifyTotp(user.twoFactorSecret!, totpCode);
-      const recoveryUsed = !valid && user.twoFactorRecoveryCodes.includes(totpCode);
+      const recoveryUsed =
+        !valid && user.twoFactorRecoveryCodes.includes(totpCode);
       if (!valid && !recoveryUsed) {
         throw new UnauthorizedException('Code 2FA invalide');
       }
@@ -104,7 +116,9 @@ export class AuthService {
         await this.prisma.user.update({
           where: { id: user.id },
           data: {
-            twoFactorRecoveryCodes: user.twoFactorRecoveryCodes.filter((c) => c !== totpCode),
+            twoFactorRecoveryCodes: user.twoFactorRecoveryCodes.filter(
+              (c) => c !== totpCode,
+            ),
           },
         });
       }
@@ -116,7 +130,9 @@ export class AuthService {
 
   async refresh(refreshTokenPlain: string, ip?: string) {
     const tokenHash = this.hashToken(refreshTokenPlain);
-    const stored = await this.prisma.refreshToken.findUnique({ where: { tokenHash } });
+    const stored = await this.prisma.refreshToken.findUnique({
+      where: { tokenHash },
+    });
 
     if (!stored || stored.revoked || stored.expiresAt < new Date()) {
       throw new UnauthorizedException('Refresh token invalide ou expiré');
@@ -145,14 +161,18 @@ export class AuthService {
   async resolveUserFromAccessToken(token: string): Promise<AuthenticatedUser> {
     let payload: { sub: string };
     try {
-      payload = this.jwt.verify(token, { secret: this.config.get<string>('jwt.accessSecret') });
+      payload = this.jwt.verify(token, {
+        secret: this.config.get<string>('jwt.accessSecret'),
+      });
     } catch {
       throw new UnauthorizedException('Token invalide ou expiré');
     }
 
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
-      include: { role: { include: { permissions: { include: { permission: true } } } } },
+      include: {
+        role: { include: { permissions: { include: { permission: true } } } },
+      },
     });
     if (!user || user.status !== 'ACTIVE') {
       throw new UnauthorizedException('Compte invalide');
@@ -160,14 +180,24 @@ export class AuthService {
 
     const permissions = this.permissionsForRole(user.role);
 
-    return { id: user.id, email: user.email, username: user.username, roleId: user.roleId, permissions };
+    return {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      roleId: user.roleId,
+      permissions,
+    };
   }
 
   // Résout la liste de permissions effectives d'un rôle (utilisé pour les
   // access tokens REST/WS ainsi que pour l'authentification SFTP — voir
   // FilesModule/SftpAuthService).
   permissionsForRole(
-    role: { isSystem: boolean; name: string; permissions: { permission: { key: string } }[] } | null,
+    role: {
+      isSystem: boolean;
+      name: string;
+      permissions: { permission: { key: string } }[];
+    } | null,
   ): string[] {
     if (!role) return [];
     if (role.isSystem && role.name === 'admin') return ['*'];
@@ -175,14 +205,17 @@ export class AuthService {
   }
 
   async validateOAuthLogin(profile: OAuthProfile) {
-    const providerField = `${profile.provider}Id` as 'discordId' | 'googleId' | 'githubId';
+    const providerField = `${profile.provider}Id` as
+      'discordId' | 'googleId' | 'githubId';
 
     let user = await this.prisma.user.findFirst({
       where: { [providerField]: profile.providerId },
     });
 
     if (!user) {
-      const clientRole = await this.prisma.role.findUnique({ where: { name: 'client' } });
+      const clientRole = await this.prisma.role.findUnique({
+        where: { name: 'client' },
+      });
       user = await this.prisma.user.upsert({
         where: { email: profile.email },
         update: { [providerField]: profile.providerId },
@@ -203,7 +236,9 @@ export class AuthService {
   // ---------------------------------------------------------------------
 
   async generateTwoFactorSecret(userId: string) {
-    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+    });
     const secret = speakeasy.generateSecret({
       name: `Elysia Panel (${user.email})`,
     });
@@ -218,9 +253,13 @@ export class AuthService {
   }
 
   async enableTwoFactor(userId: string, code: string) {
-    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+    });
     if (!user.twoFactorSecret) {
-      throw new UnauthorizedException('Aucun secret 2FA en attente de confirmation');
+      throw new UnauthorizedException(
+        'Aucun secret 2FA en attente de confirmation',
+      );
     }
     if (!this.verifyTotp(user.twoFactorSecret, code)) {
       throw new UnauthorizedException('Code 2FA invalide');
@@ -239,18 +278,29 @@ export class AuthService {
   }
 
   async disableTwoFactor(userId: string, code: string) {
-    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+    });
     if (!user.twoFactorSecret || !this.verifyTotp(user.twoFactorSecret, code)) {
       throw new UnauthorizedException('Code 2FA invalide');
     }
     await this.prisma.user.update({
       where: { id: userId },
-      data: { twoFactorEnabled: false, twoFactorSecret: null, twoFactorRecoveryCodes: [] },
+      data: {
+        twoFactorEnabled: false,
+        twoFactorSecret: null,
+        twoFactorRecoveryCodes: [],
+      },
     });
   }
 
   private verifyTotp(secret: string, code: string): boolean {
-    return speakeasy.totp.verify({ secret, encoding: 'base32', token: code, window: 1 });
+    return speakeasy.totp.verify({
+      secret,
+      encoding: 'base32',
+      token: code,
+      window: 1,
+    });
   }
 
   // ---------------------------------------------------------------------
@@ -259,7 +309,9 @@ export class AuthService {
   // ---------------------------------------------------------------------
 
   async impersonate(adminId: string, targetUserId: string, ip?: string) {
-    const target = await this.prisma.user.findUniqueOrThrow({ where: { id: targetUserId } });
+    const target = await this.prisma.user.findUniqueOrThrow({
+      where: { id: targetUserId },
+    });
     await this.audit.log({
       actorId: adminId,
       action: 'auth.impersonate',
@@ -283,7 +335,11 @@ export class AuthService {
   // Internals
   // ---------------------------------------------------------------------
 
-  private async issueTokenPair(userId: string, ip?: string, userAgent?: string): Promise<TokenPair> {
+  private async issueTokenPair(
+    userId: string,
+    ip?: string,
+    userAgent?: string,
+  ): Promise<TokenPair> {
     const accessToken = this.jwt.sign(
       { sub: userId },
       {
@@ -294,7 +350,9 @@ export class AuthService {
 
     const refreshTokenPlain = crypto.randomBytes(48).toString('hex');
     const tokenHash = this.hashToken(refreshTokenPlain);
-    const ttlMs = this.parseTtlToMs(this.config.get<string>('jwt.refreshTtl') ?? '30d');
+    const ttlMs = this.parseTtlToMs(
+      this.config.get<string>('jwt.refreshTtl') ?? '30d',
+    );
 
     await this.prisma.refreshToken.create({
       data: {

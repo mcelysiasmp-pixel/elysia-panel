@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Headers, Param, Post, RawBodyRequest, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  Param,
+  Post,
+  RawBodyRequest,
+  Req,
+} from '@nestjs/common';
 import type { Request } from 'express';
 import { Public } from '../common/decorators/public.decorator';
 import { RequirePermissions } from '../common/decorators/permissions.decorator';
@@ -22,13 +31,21 @@ export class BillingController {
 
   @Post('products')
   @RequirePermissions('billing.manage')
-  createProduct(@Body('name') name: string, @Body('description') description: string | undefined, @CurrentUser() actor: AuthenticatedUser) {
+  createProduct(
+    @Body('name') name: string,
+    @Body('description') description: string | undefined,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
     return this.billing.createProduct(name, description, actor.id);
   }
 
   @Post('products/:productId/plans')
   @RequirePermissions('billing.manage')
-  createPlan(@Param('productId') productId: string, @Body() body: any, @CurrentUser() actor: AuthenticatedUser) {
+  createPlan(
+    @Param('productId') productId: string,
+    @Body() body: any,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
     return this.billing.createPlan(productId, body, actor.id);
   }
 
@@ -64,12 +81,20 @@ export class BillingController {
     @Body('cancelUrl') cancelUrl: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.stripe.createCheckoutSession(user.id, planId, successUrl, cancelUrl);
+    return this.stripe.createCheckoutSession(
+      user.id,
+      planId,
+      successUrl,
+      cancelUrl,
+    );
   }
 
   @Public()
   @Post('webhooks/stripe')
-  async stripeWebhook(@Req() req: RawBodyRequest<Request>, @Headers('stripe-signature') signature: string) {
+  async stripeWebhook(
+    @Req() req: RawBodyRequest<Request>,
+    @Headers('stripe-signature') signature: string,
+  ) {
     return this.stripe.handleWebhook(req.rawBody!, signature);
   }
 }

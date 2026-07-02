@@ -22,7 +22,9 @@ export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
     return this.authService.validateOAuthLogin({
       provider: 'github',
       providerId: profile.id,
-      email: profile.emails?.[0]?.value ?? `${profile.username}@users.noreply.github.com`,
+      email:
+        profile.emails?.[0]?.value ??
+        `${profile.username}@users.noreply.github.com`,
       username: profile.username,
     });
   }

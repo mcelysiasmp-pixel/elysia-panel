@@ -23,13 +23,24 @@ export class StripeService {
   }
 
   private requireStripe(): Stripe {
-    if (!this.stripe) throw new BadRequestException('Stripe non configuré (STRIPE_SECRET_KEY manquant)');
+    if (!this.stripe)
+      throw new BadRequestException(
+        'Stripe non configuré (STRIPE_SECRET_KEY manquant)',
+      );
     return this.stripe;
   }
 
-  async createCheckoutSession(userId: string, planId: string, successUrl: string, cancelUrl: string) {
+  async createCheckoutSession(
+    userId: string,
+    planId: string,
+    successUrl: string,
+    cancelUrl: string,
+  ) {
     const stripe = this.requireStripe();
-    const plan = await this.prisma.plan.findUniqueOrThrow({ where: { id: planId }, include: { product: true } });
+    const plan = await this.prisma.plan.findUniqueOrThrow({
+      where: { id: planId },
+      include: { product: true },
+    });
 
     const session = await stripe.checkout.sessions.create({
       mode: plan.billingCycle === 'ONE_TIME' ? 'payment' : 'subscription',
@@ -40,7 +51,9 @@ export class StripeService {
             unit_amount: plan.priceCents,
             product_data: { name: `${plan.product.name} — ${plan.name}` },
             ...(plan.billingCycle !== 'ONE_TIME' && {
-              recurring: { interval: this.mapCycleToStripeInterval(plan.billingCycle) },
+              recurring: {
+                interval: this.mapCycleToStripeInterval(plan.billingCycle),
+              },
             }),
           },
           quantity: 1,
@@ -58,13 +71,20 @@ export class StripeService {
   async handleWebhook(rawBody: Buffer, signature: string) {
     const stripe = this.requireStripe();
     const webhookSecret = this.config.get<string>('stripe.webhookSecret');
-    if (!webhookSecret) throw new BadRequestException('STRIPE_WEBHOOK_SECRET manquant');
+    if (!webhookSecret)
+      throw new BadRequestException('STRIPE_WEBHOOK_SECRET manquant');
 
-    const event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
+    const event = stripe.webhooks.constructEvent(
+      rawBody,
+      signature,
+      webhookSecret,
+    );
 
     switch (event.type) {
       case 'checkout.session.completed':
-        await this.onCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
+        await this.onCheckoutCompleted(
+          event.data.object as Stripe.Checkout.Session,
+        );
         break;
       case 'invoice.paid':
         await this.onInvoicePaid(event.data.object as Stripe.Invoice);
@@ -85,14 +105,18 @@ export class StripeService {
         userId,
         planId,
         status: 'ACTIVE',
-        stripeSubscriptionId: typeof session.subscription === 'string' ? session.subscription : undefined,
+        stripeSubscriptionId:
+          typeof session.subscription === 'string'
+            ? session.subscription
+            : undefined,
       },
     });
   }
 
   private async onInvoicePaid(stripeInvoice: Stripe.Invoice) {
     const subscriptionId =
-      typeof stripeInvoice.parent?.subscription_details?.subscription === 'string'
+      typeof stripeInvoice.parent?.subscription_details?.subscription ===
+      'string'
         ? stripeInvoice.parent.subscription_details.subscription
         : undefined;
     if (!subscriptionId) return;
@@ -109,7 +133,10 @@ export class StripeService {
         number: await this.billing.createInvoiceNumber(),
         status: 'PAID',
         subtotalCents: stripeInvoice.subtotal,
-        taxCents: (stripeInvoice.total_taxes ?? []).reduce((sum, t) => sum + t.amount, 0),
+        taxCents: (stripeInvoice.total_taxes ?? []).reduce(
+          (sum, t) => sum + t.amount,
+          0,
+        ),
         totalCents: stripeInvoice.total,
         currency: stripeInvoice.currency.toUpperCase(),
         provider: 'STRIPE',
@@ -119,7 +146,9 @@ export class StripeService {
     });
   }
 
-  private mapCycleToStripeInterval(cycle: string): Stripe.Price.Recurring.Interval {
+  private mapCycleToStripeInterval(
+    cycle: string,
+  ): Stripe.Price.Recurring.Interval {
     switch (cycle) {
       case 'YEARLY':
         return 'year';

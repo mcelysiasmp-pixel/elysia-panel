@@ -10,7 +10,10 @@ export class ScheduledTasksController {
 
   @Get()
   @RequirePermissions('servers.update')
-  list(@Param('serverId') serverId: string, @CurrentUser() user: AuthenticatedUser) {
+  list(
+    @Param('serverId') serverId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.tasks.listForServer(serverId, user);
   }
 
