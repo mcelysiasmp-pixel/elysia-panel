@@ -18,6 +18,8 @@ export const CLIENT_NAV: NavItem[] = [
 export const ADMIN_NAV: NavItem[] = [
   { label: "Utilisateurs", href: "/admin/users", icon: Users, requiresAdmin: true },
   { label: "Rôles", href: "/admin/roles", icon: ShieldCheck, requiresAdmin: true },
+  { label: "Marketplace", href: "/admin/marketplace", icon: Store, requiresAdmin: true },
+  { label: "Templates", href: "/admin/templates", icon: Server, requiresAdmin: true },
   { label: "Nodes", href: "/admin/nodes", icon: Network, requiresAdmin: true },
   { label: "Monitoring", href: "/admin/monitoring", icon: Activity, requiresAdmin: true },
   { label: "Audit logs", href: "/admin/audit-logs", icon: ScrollText, requiresAdmin: true },

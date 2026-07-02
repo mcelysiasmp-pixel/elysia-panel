@@ -85,7 +85,109 @@ export function ModsPanel({ serverId }: { serverId: string }) {
           </TabsContent>
         </Tabs>
       </div>
+
+      <div className="flex flex-col gap-2">
+        <h3 className="text-sm font-medium">Installer un modpack complet</h3>
+        <Tabs defaultValue="modrinth-pack">
+          <TabsList>
+            <TabsTrigger value="modrinth-pack">Modrinth (.mrpack)</TabsTrigger>
+            <TabsTrigger value="curseforge-pack">CurseForge / FTB / ATLauncher / MultiMC</TabsTrigger>
+          </TabsList>
+          <TabsContent value="modrinth-pack" className="pt-3">
+            <ModrinthModpack serverId={serverId} />
+          </TabsContent>
+          <TabsContent value="curseforge-pack" className="pt-3">
+            <CurseforgeModpack serverId={serverId} />
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
+  );
+}
+
+function ModrinthModpack({ serverId }: { serverId: string }) {
+  const queryClient = useQueryClient();
+  const [mrpackUrl, setMrpackUrl] = useState("");
+
+  const installMutation = useMutation({
+    mutationFn: () => api.post<{ installed: number }>(`/servers/${serverId}/modpacks/modrinth`, { mrpackUrl }),
+    onSuccess: (data) => {
+      toast.success(`Modpack installé (${data.installed} fichiers)`);
+      setMrpackUrl("");
+      queryClient.invalidateQueries({ queryKey: ["mods", serverId] });
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : "Installation impossible"),
+  });
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        installMutation.mutate();
+      }}
+      className="flex flex-col gap-2"
+    >
+      <p className="text-xs text-muted-foreground">
+        Collez l&apos;URL de téléchargement d&apos;un fichier .mrpack (page de version Modrinth, bouton &quot;Download&quot;).
+      </p>
+      <div className="flex gap-2">
+        <Input
+          value={mrpackUrl}
+          onChange={(e) => setMrpackUrl(e.target.value)}
+          placeholder="https://cdn.modrinth.com/.../pack.mrpack"
+          className="font-mono text-sm"
+          required
+        />
+        <Button type="submit" disabled={installMutation.isPending}>
+          <Download className="mr-1 size-4" /> Installer
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function CurseforgeModpack({ serverId }: { serverId: string }) {
+  const queryClient = useQueryClient();
+  const [file, setFile] = useState<File | null>(null);
+
+  const installMutation = useMutation({
+    mutationFn: () => {
+      const formData = new FormData();
+      formData.append("archive", file!);
+      return api.upload(`/servers/${serverId}/modpacks/curseforge`, formData);
+    },
+    onSuccess: () => {
+      toast.success("Modpack installé");
+      setFile(null);
+      queryClient.invalidateQueries({ queryKey: ["mods", serverId] });
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : "Installation impossible"),
+  });
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (file) installMutation.mutate();
+      }}
+      className="flex flex-col gap-2"
+    >
+      <p className="text-xs text-muted-foreground">
+        Archive .zip contenant manifest.json + overrides/ (export CurseForge, FTB, ATLauncher, Technic ou Prism/MultiMC).
+      </p>
+      <div className="flex gap-2">
+        <Input
+          type="file"
+          accept=".zip"
+          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          className="text-sm"
+          required
+        />
+        <Button type="submit" disabled={installMutation.isPending || !file}>
+          <Download className="mr-1 size-4" /> Installer
+        </Button>
+      </div>
+    </form>
   );
 }
 

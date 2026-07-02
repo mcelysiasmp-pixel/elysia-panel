@@ -1,8 +1,10 @@
 # Reste à faire — Elysia Panel
 
-État au 2026-07-02, après la session sur : SFTP par serveur (façon Ptero) +
-audit de parité backend↔dashboard + rattrapage dashboard (file manager,
-stats live).
+État au 2026-07-02. Panel utilisé en self-hosted façon Pterodactyl (pas un
+hébergeur revendant des serveurs — confirmé avec l'utilisateur, voir plus
+bas). Deux vagues de travail cette session : (1) rattrapage des chantiers
+dashboard priorisés avec l'utilisateur, (2) audit complet "qu'est-ce qui
+manque pour un panel fini ?" + résolution de tout ce qui a pu l'être.
 
 ## Bug corrigé cette session
 
@@ -12,46 +14,28 @@ stats live).
   try/catch temporaire dans `subscribeStats` : `TypeError: Cannot read
   properties of undefined (reading 'permissions')` dans
   `ServersService.findAccessibleOrThrow`. **Ce n'était pas un problème de
-  sérialisation gRPC/protobuf** (les suspects listés dans une version
-  précédente de ce fichier étaient faux pistes) — `socket.data.user` était
-  `undefined` au moment du handler.
+  sérialisation gRPC/protobuf** — `socket.data.user` était `undefined` au
+  moment du handler.
 - Vraie cause : race condition. `handleConnection` (interface
   `OnGatewayConnection`) est asynchrone (vérif JWT + lookup Prisma), mais
   NestJS ne bloque pas le dispatch des messages entrants le temps que cette
   promesse se résolve — un client qui émet un event juste après `connect`
   peut donc atteindre un `@SubscribeMessage` avant que `socket.data.user`
-  soit renseigné. `stats:subscribe` plantait de façon systématique (et pas
-  `console:subscribe`) simplement parce que le round-trip du dashboard est
-  plus rapide sur l'un que sur l'autre dans les faits — un test manuel avec
-  un léger délai avant `console:subscribe` masquait le bug par hasard.
+  soit renseigné.
 - **Fix** : auth déplacée dans un middleware de namespace Socket.IO
   (`afterInit(server) { server.use((socket, next) => {...}) }` au lieu de
-  `handleConnection`). Un middleware `server.use()` fait partie du
-  handshake — socket.io garantit qu'il est résolu avant que `'connection'`
-  soit émis et donc avant tout message. Voir
+  `handleConnection`), qui fait partie du handshake — socket.io garantit
+  qu'il est résolu avant `'connection'` et donc avant tout message. Voir
   `backend/src/websocket/console.gateway.ts`.
-- Vérifié en réel (backend + daemon + vrai conteneur Docker démarré, script
-  `socket.io-client` reproduisant exactement ce que fait le dashboard) :
-  5/5 runs propres avec subscribe immédiat après connect (le cas qui
-  plantait à 100% avant le fix), `stats:update` reçus en continu, et
-  `console:subscribe` toujours fonctionnel (même chemin d'auth).
-- **Bug additionnel trouvé et corrigé au passage** dans
-  `dashboard/src/components/panel/stats-panel.tsx` : le backend charge le
-  proto avec `longs: String` (@grpc/proto-loader), donc les champs int64
-  comme `memory_used_mb` arrivent en **string** sur le WebSocket (vérifié :
-  `"memory_used_mb":"0"` vs `"cpu_usage_pct":0` sans guillemets côté
-  `double`). Le composant appelait `.toFixed()` dessus directement →
-  `TypeError` runtime au premier `stats:update` reçu, jamais détecté avant
-  car jamais testé en conditions réelles. Corrigé par `Number(...)` à la
-  réception de l'event.
-- Les trois fichiers dashboard (`stats-panel.tsx`, câblage dans
-  `servers/[id]/page.tsx`, tokens couleur dans `globals.css`) sont
-  maintenant committés.
+- Bug additionnel corrigé au passage dans `stats-panel.tsx` : le backend
+  charge le proto avec `longs: String`, donc `memory_used_mb` arrive en
+  **string** sur le WebSocket — `.toFixed()` plantait au premier
+  `stats:update` reçu. Corrigé par `Number(...)` à la réception.
 
-### Méthode pour retester (déjà rodée cette session)
+### Méthode pour retester en conditions réelles (backend↔daemon↔Docker)
 
-1. `cd backend && pnpm run start:dev` (arrière-plan, attendre `/api/docs`
-   dispo).
+1. `cd backend && pnpm run start:dev` (arrière-plan, attendre
+   `Nest application successfully started`).
 2. `cd daemon && NODE_API_PORT=9590 NODE_GRPC_PORT=9591 NODE_SFTP_PORT=9524
    ELYSIA_RUNTIME_DIR=/tmp/xxx/srv ELYSIA_BACKUPS_DIR=/tmp/xxx/backups
    DOCKER_NETWORK_NAME=elysia-net NODE_INTERNAL_SECRET=dev_test_node_internal_secret
@@ -59,198 +43,139 @@ stats live).
    NODE_SFTP_HOST_KEY=/tmp/xxx/certs/key go run ./cmd/elysia-node`
    (arrière-plan).
 3. Créer user/node/template de test via un script `ts-node` Prisma
-   ponctuel (voir les commits de cette session pour des exemples : ils
-   étaient nommés `prisma/verify-*.ts` et systématiquement supprimés après
-   usage, ne pas les laisser traîner).
+   ponctuel dans `backend/prisma/verify-*.ts` — **toujours supprimé après
+   usage**, ne pas les laisser traîner dans le dépôt.
 4. Passer le node `ONLINE` via `GET /nodes/:id/health` (sinon
    `POST /servers` échoue avec "Aucun node disponible").
-5. `POST /servers` (créer), `POST /servers/:id/power/start` (démarre un
-   vrai conteneur Docker — vérifié que ça marche).
-6. Se connecter en WebSocket avec un petit script Node utilisant
-   `socket.io-client` (déjà une dépendance du dashboard, réutilisable via
-   `require("<repo>/dashboard/node_modules/socket.io-client")`), émettre
-   `stats:subscribe`, écouter `stats:update`/`stats:error`/`exception`.
-7. **Ne pas oublier de nettoyer** après coup : conteneurs Docker
-   (`docker rm -f`), réseaux Docker par-serveur (`elysia_srv_<uuid>`),
-   lignes de test en base, et surtout **tuer les vrais process** avec
-   `pkill -9 -f "dist/src/main"` ET `pkill -9 -f "nest.js start"` (attention,
-   `pkill -f "nest start"` ne matche PAS `nest.js start --watch` à cause du
-   `.js` — piège rencontré plusieurs fois cette session, qui a fait tourner
-   plusieurs backends fantômes en parallèle et donné de faux résultats).
+5. `POST /servers` (créer), `POST /servers/:id/power/start` démarre un
+   vrai conteneur Docker.
+6. Reproduire les appels HTTP/WebSocket exacts que ferait le dashboard
+   (`curl`, ou un script `socket.io-client` pour le temps réel).
+7. **Nettoyer** après coup : conteneurs Docker (`docker rm -f`), réseaux
+   Docker par-serveur (`elysia_srv_<uuid>`), lignes de test en base, et
+   **tuer les vrais process** avec `pkill -9 -f "dist/src/main"` ET
+   `pkill -9 -f "nest.js start"` (attention : `pkill -f "nest start"` ne
+   matche PAS `nest.js start --watch` à cause du `.js` — piège rencontré
+   plusieurs fois cette session, plusieurs backends fantômes en parallèle
+   ont donné de faux résultats avant que ce soit compris).
 
-## Fait cette session (committé)
+## Vague 1 — chantiers dashboard priorisés avec l'utilisateur (tous faits)
 
-1. `84ec21c` — Endpoints serveurs update/reinstall/allocations + fichiers
-   upload/mkdir (backend + daemon), y compris `ReinstallServer` qui
-   manquait complètement côté daemon Go.
-2. `a7b24e7` — SFTP par serveur façon Wings, port **9522** (pas 2022, pour
-   ne jamais entrer en collision avec un Pterodactyl existant — contrainte
-   de conception du projet, voir README). Testé avec un vrai client SFTP :
-   auth, list/read/mkdir/upload, path traversal bloqué, sub-user lecture
-   seule bloqué en écriture.
-3. `66ecbbc` — Onglet SFTP dans le dashboard (host/port/user copiables).
-4. `b58ca20` — **Bug important corrigé** : le chemin vers `elysia.proto`
-   était mal calculé (`__dirname` supposait une exécution ts-node jamais
-   utilisée en pratique), ce qui cassait TOUT appel gRPC backend→daemon
-   (actions serveur, reinstall, allocations, fichiers...) au runtime, en
-   dev comme en prod. Corrigé + installateur mis à jour pour déployer
-   `api/` en frère de `backend/`.
-5. `d1541ef` — Gestionnaire de fichiers complet dans le dashboard (liste,
-   navigation, upload, mkdir, édition de fichiers texte, download, rename,
-   delete). Toute la chaîne testée en réel via de vrais appels HTTP.
-6. `b87d327` — Fix race condition `stats:subscribe` (voir section ci-dessus)
-   + fix bug parsing `memory_used_mb` (string int64) + stats live CPU/RAM
-   dans le dashboard.
-7. `95a884a` — Onglet Paramètres serveur dans le dashboard : général
-   (nom/description/image/startup/env), réinstaller, allocations réseau
-   (ajout/suppression), sous-utilisateurs (ajout/suppression avec
-   permissions). Nouvel endpoint backend `GET /users/lookup?email=`
-   (accessible à tout utilisateur authentifié, sans `users.read`) :
-   nécessaire pour qu'un propriétaire de serveur (rôle client, pas admin)
-   puisse résoudre l'email d'un ami en `userId` avant de l'ajouter comme
-   sub-user — sans ça, `POST /servers/:id/subusers` était inutilisable
-   depuis le dashboard pour un non-admin (il exige un `userId`, et
-   `GET /users` est admin-only). Toute la chaîne testée en réel : update,
-   reinstall (vérifié que le conteneur est recréé avec la nouvelle commande
-   de démarrage), add/remove allocation, lookup + add/remove sub-user, y
-   compris avec un compte non-admin pour confirmer que `/users/lookup` ne
-   nécessite pas `users.read` alors que `GET /users` reste bloqué.
-8. `5968e71` — Détail + réponse ticket support côté dashboard (voir section
-   ci-dessus).
-9. `646f8b4` — Nodes : bouton delete câblé dans `admin/nodes` (le toggle
-   maintenance était en fait déjà câblé, juste sans gestion d'erreur/toast
-   — refait en `useMutation` propre au passage). Testé en réel : toggle
-   maintenance (ONLINE ↔ MAINTENANCE), suppression bloquée avec message
-   clair tant qu'un serveur est hébergé sur le node (le backend le vérifie
-   déjà), suppression qui réussit une fois le serveur supprimé.
-10. (à committer avec cette mise à jour) — Monitoring visualisé
-    (`admin/monitoring`) : les 3 stat cards CPU/RAM/Disque sont remplacées
-    par des meters colorés (bonne/warning/critique selon seuils, même
-    logique que les stats live serveur) et le bloc "Serveurs par statut"
-    par un bar chart horizontal trié par count, couleurs reprenant
-    exactement le mapping sémantique déjà utilisé par `status-badge.tsx`
-    (cohérence badges ↔ graphe). Palette validée avec le script du skill
-    dataviz (`validate_palette.js`) : CVD separation PASS, contrast WARN
-    attendu pour des couleurs de statut saturées — mitigé par les labels
-    texte + valeurs numériques toujours visibles à côté de chaque barre
-    (jamais de couleur seule pour porter l'identité). Pas de graphes
-    time-series : le résumé `/monitoring/summary` est un instantané ponctuel
-    (les gauges Prometheus internes ne sont pas exposées en série
-    temporelle interrogeable par le dashboard, seulement en scrape texte
-    `/metrics` pour un Prometheus/Grafana externe) — donc meters +
-    bar chart plutôt que sparklines ici. Vérifié la forme exacte de la
-    réponse `/monitoring/summary` avec de vraies données (node + serveurs
-    de plusieurs statuts) contre ce que consomment les nouveaux composants.
-11. `f5a7a68` — Bouton install marketplace, scope réduit aux items PLUGIN
-    gratuits (voir section ci-dessous pour le détail et le raisonnement sur
-    le scope).
-12. (à committer avec cette mise à jour) — Admin roles/permissions +
-    Scheduled tasks UI (voir section ci-dessous). Checkout billing marqué
-    hors scope après clarification utilisateur : le panel est auto-hébergé
-    façon Pterodactyl, pas de facturation client à construire.
+1. `d1541ef` — Gestionnaire de fichiers (liste, navigation, upload, mkdir,
+   édition, download, rename, delete).
+2. `b58ca20` — **Bug important** : chemin vers `elysia.proto` mal calculé,
+   cassait TOUT appel gRPC backend→daemon en dev comme en prod, invisible
+   en typecheck/build. Corrigé + installateur mis à jour.
+3. `b87d327` — Fix race condition `stats:subscribe` (détail ci-dessus) +
+   stats live CPU/RAM dans le dashboard.
+4. `95a884a` — Onglet Paramètres serveur (général/reinstall/allocations/
+   sub-users) + nouvel endpoint `GET /users/lookup?email=` (accessible
+   sans `users.read`, nécessaire pour qu'un client non-admin résolve
+   l'email d'un ami en `userId` avant de l'ajouter comme sub-user).
+5. `5968e71` — Détail + réponse ticket support (thread de messages, statut
+   réservé à `support.reply`, page partagée client/staff).
+6. `646f8b4` — Nodes : bouton delete + toggle maintenance refait en
+   `useMutation` propre.
+7. `f7be4c7` — Monitoring visualisé : meters colorés (CPU/RAM/Disque) +
+   bar chart "serveurs par statut" (couleurs alignées sur
+   `status-badge.tsx`, palette validée avec le skill dataviz). Pas de
+   time-series : `/monitoring/summary` est un instantané ponctuel, les
+   gauges Prometheus ne sont exposées qu'en scrape texte `/metrics` pour
+   un Prometheus/Grafana externe.
+8. `f5a7a68` — Bouton install marketplace, scope réduit aux items
+   `PLUGIN` gratuits (les 4 autres types n'ont pas la même sémantique
+   d'installation, et pas de paiement pour les items payants — voir
+   "hors scope" plus bas). Réutilise `ModSource.MANUAL` (déjà dans
+   l'enum, pas de migration) + le garde-fou SSRF `assertSafeDownloadUrl`.
+9. `1b05917` — Admin roles/permissions (page `admin/roles`, assignation de
+   rôle dans `admin/users`) + Scheduled tasks UI (nouvel onglet serveur,
+   CRUD complet ; l'exécution différée elle-même —
+   `ScheduledTasksService.execute` sur `@Cron(EVERY_MINUTE)` — n'a pas été
+   modifiée, donc pas re-testée en conditions réelles, seul le CRUD est
+   nouveau).
 
-## Reste à faire — chantiers dashboard (priorisés avec l'utilisateur)
+**Checkout billing (Stripe) : hors scope**, clarifié avec l'utilisateur
+(2026-07-02) — le panel est auto-hébergé façon Pterodactyl, pas un
+hébergeur revendant des serveurs à des clients. Le module `billing`
+backend reste dans le code mais n'a pas besoin d'UI dashboard.
 
-Cf. mémoire long-terme (`project_elysia_panel.md`) pour le détail de
-l'audit initial. Statut mis à jour :
+## Vague 2 — audit "panel fini ?" + résolution (tous faits)
 
-1. ~~File manager~~ ✅ fait (commit `d1541ef`)
-2. ~~Stats live serveur (CPU/RAM)~~ ✅ fait (voir section bug corrigé
-   ci-dessus)
-3. ~~Settings serveur~~ ✅ fait (update/reinstall/allocations/subusers +
-   nouvel endpoint `/users/lookup`)
-4. ~~Détail + réponse ticket support~~ ✅ fait — page
-   `support/[id]/page.tsx` : thread de messages (bulle distincte pour les
-   réponses staff), formulaire de réponse, changement de statut réservé aux
-   comptes avec `support.reply`. La page liste + la page détail sont
-   partagées entre client et staff (le scoping — un client ne voit que ses
-   propres tickets — est déjà géré côté backend par `listForUser`/
-   `findAccessibleOrThrow`, pas besoin d'une page admin séparée). Testé en
-   réel avec un compte client et un compte staff distincts : création,
-   réponse staff, changement de statut, et vérifié que le 403 backend sur
-   `:id/status` est bien renvoyé à un client qui tente de forcer le statut.
-5. ~~Checkout billing~~ **hors scope** — clarifié avec l'utilisateur
-   (2026-07-02) : ce panel est utilisé façon Pterodactyl, auto-hébergé sur
-   un VPS déjà payé par ailleurs. L'utilisateur n'est pas un hébergeur
-   revendant des serveurs à des clients, donc pas de flux de paiement
-   client à construire. Le module `billing` backend (Stripe) reste dans le
-   code mais n'a pas besoin d'UI dashboard.
-6. ~~Bouton install marketplace~~ ✅ fait, **scope volontairement réduit** :
-   seuls les items `type: PLUGIN` et gratuits (`priceCents === 0`) sont
-   installables — le marketplace a 5 types (PLUGIN/THEME/TEMPLATE/
-   DOCKER_IMAGE/EXTENSION) dont l'installation n'a pas la même sémantique
-   (un THEME ou un TEMPLATE ne se "dépose" pas sur un serveur comme un
-   fichier plugin), et il n'y a pas encore de paiement Stripe pour facturer
-   les items payants (point 5 ci-dessus) — donc INSTALLER resterait
-   incorrect pour les 4 autres types. Backend : nouvelle méthode
-   `ModsService.installFromMarketplace` (réutilise `ModSource.MANUAL`,
-   déjà présent dans l'enum et inutilisé jusqu'ici — **pas de migration
-   Prisma nécessaire**), réutilise le garde-fou SSRF existant
-   `assertSafeDownloadUrl` (allowlist de hosts) sur `item.downloadUrl` —
-   important ici car ce champ est saisi par un publisher marketplace, pas
-   une API de confiance comme Modrinth/CurseForge. Nouvel endpoint
-   `POST /servers/:serverId/mods/marketplace`. Dashboard : bouton
-   "Installer" visible uniquement sur les cartes PLUGIN gratuites, dialog
-   de sélection du serveur cible + dossier d'installation. Testé en réel
-   (backend + daemon + conteneur Docker) : téléchargement réel d'un fichier
-   depuis un host autorisé de l'allowlist et écriture confirmée dans le
-   conteneur (`plugins/test-plugin-debug-1.0.0.jar`, taille correcte),
-   compteur `downloads` incrémenté, apparition dans `GET .../mods`, et les
-   3 garde-fous testés individuellement : 400 sur type non-PLUGIN, 400 sur
-   item payant, 400 SSRF sur host non autorisé.
-7. ~~Admin roles/permissions~~ ✅ fait — nouvelle page `admin/roles/page.tsx` :
-   création de rôle, checkboxes de permissions groupées (par le champ
-   `group` de `Permission`), sauvegarde par rôle (`PUT
-   /roles/:id/permissions`), suppression (bloquée côté backend pour les
-   rôles système `admin`/`client`, géré par `role.isSystem` — bouton
-   supprimer masqué côté UI pour ces rôles). Ajout aussi de l'assignation
-   de rôle à un utilisateur dans `admin/users/page.tsx` (Select par ligne,
-   `PATCH /users/:id` avec `roleId` — l'endpoint existait déjà mais n'était
-   pas exploité). Nouvelle entrée de nav "Rôles" dans `ADMIN_NAV`. Testé en
-   réel : liste rôles/permissions, création + attribution de permissions +
-   suppression d'un rôle custom, 400 backend confirmé sur la suppression
-   d'un rôle système, et assignation de rôle à un utilisateur cible.
-8. ~~Monitoring Prometheus visualisé~~ ✅ fait (voir section ci-dessus)
-9. ~~Scheduled tasks UI~~ ✅ fait — nouvel onglet "Tâches planifiées" dans
-   la page serveur (`components/panel/scheduled-tasks-panel.tsx`) : liste
-   avec statut/prochaine exécution, formulaire de création (nom, expression
-   cron en texte libre, action parmi POWER_START/STOP/RESTART/
-   BACKUP_CREATE/COMMAND_SEND — champ commande supplémentaire affiché
-   seulement pour COMMAND_SEND), toggle enable/disable, suppression. Suit
-   le même pattern que `backups-panel.tsx`. Testé en réel : création d'une
-   tâche BACKUP_CREATE et d'une tâche COMMAND_SEND avec payload, vérifié
-   que `nextRunAt` est calculé correctement par le backend
-   (`cron-parser`), enable/disable, suppression — l'exécution différée
-   elle-même (le `@Cron(EVERY_MINUTE)` qui déclenche les tâches dues) n'a
-   pas été observée en conditions réelles (aurait nécessité d'attendre une
-   échéance cron), mais le code d'exécution (`ScheduledTasksService.execute`)
-   n'a pas été modifié cette session — seul le CRUD est nouveau.
-10. ~~Nodes : maintenance + delete~~ ✅ fait (voir section ci-dessus)
+Après la vague 1, l'utilisateur a demandé un audit de ce qui manquait
+encore pour un panel "parfait". Un agent a passé le dépôt au crible
+(endpoints backend jamais appelés côté dashboard, TODO, sécurité,
+installateur, tests, lint). Résultat traité point par point :
 
-## Chantiers restants
+1. `bd27134` — `eslint --fix` sur tout le backend (335 erreurs, 100%
+   formatage, aucune logique) + fix d'un vrai bug React dans
+   `stats-panel.tsx` (lecture d'un `useRef` pendant le render, signalé par
+   `react-hooks/refs` — remplacé par un `useState`).
+2. `57775d4` — Zone dangereuse serveur (suspendre/réactiver/supprimer dans
+   `settings-panel.tsx`), gestion admin des comptes (créer/reset
+   password/supprimer dans `admin/users`), nouvelle page "Mon compte"
+   (changement de mot de passe self-service — nouvel endpoint
+   `POST /auth/change-password`, n'existait pas du tout — et
+   activation/désactivation 2FA avec QR code + codes de récupération).
+   `AuthenticatedUser` a maintenant un champ `twoFactorEnabled`.
+3. `fc4603f` — Feature complète de clés API (le modèle Prisma `ApiKey`
+   existait, rien n'était branché). Nouveau module `api-keys/`, auth par
+   clé via le même en-tête `Authorization: Bearer` que le JWT (distinguée
+   par le préfixe `elysia_`), scopes jamais plus larges que les
+   permissions de l'utilisateur — recalculé à *chaque requête*, pas figé à
+   la création. UI dans la page compte.
+4. (ce commit) — Marketplace admin (publier/vérifier un item, page
+   `admin/marketplace`), modpacks en un clic exposés dans `mods-panel.tsx`
+   (Modrinth `.mrpack` par URL, CurseForge/FTB/ATLauncher/MultiMC par
+   upload de zip — le backend le faisait déjà, aucune UI n'existait),
+   création de templates de serveur (`admin/templates` — sans le champ
+   `isPublic` dans le formulaire : `GET /server-templates` filtre déjà
+   `isPublic: true` en dur côté backend, un template créé non-public
+   aurait disparu de cette même page juste après création), pagination
+   "charger plus" sur les audit logs (`useInfiniteQuery`, au-delà des 100
+   entrées fixes précédentes).
 
-Aucun — les 10 chantiers priorisés avec l'utilisateur sont traités (le
-checkout billing a été explicitement mis hors scope, voir point 5). Session
-du 2026-07-02 : 8 commits, bug WebSocket + 7 chantiers dashboard, tous
-vérifiés en conditions réelles (backend + daemon + Docker) sauf mention
-contraire ci-dessus.
+Tout testé en conditions réelles (backend + daemon + Docker), y compris :
+cycle 2FA complet avec un vrai code TOTP calculé, tentative d'escalade de
+privilège sur une clé API (403 confirmé), clé API révoquée qui échoue bien
+(401), upload d'un modpack réel avec vérification du contenu écrit dans le
+conteneur, template créé qui apparaît bien dans la liste consommée par le
+dialog de création de serveur.
+
+### Volontairement laissé de côté (voir décisions utilisateur)
+
+- **Suite de tests automatisés** (0 test Jest/e2e backend au-delà du
+  boilerplate cassé de `nest new`, 0 test dashboard, 0 test Go) — identifié
+  par l'audit comme le plus gros chantier restant, mais pas demandé par
+  l'utilisateur. Cohérent avec la méthodologie de toute la session
+  (vérification manuelle en conditions réelles), mais aucun filet de
+  non-régression pour l'avenir si le projet grossit encore.
+- **UI OAuth (Discord/Google/GitHub)** — endpoints backend présents mais
+  `OAUTH_*_CLIENT_ID` vides dans `.env` (non configuré). Pas de manque
+  fonctionnel tant qu'aucune app OAuth n'a été créée côté fournisseur ;
+  à ajouter si l'utilisateur active un provider un jour.
+- **Flow "mot de passe oublié" par email** — demande de configurer un
+  serveur SMTP (aucune infra mail dans le projet). Clarifié avec
+  l'utilisateur (2026-07-02) : changement self-service suffit, un admin
+  reste le recours en cas d'oubli (`reset-password`, déjà câblé en vague 2).
 
 ## Points de vigilance pour la suite
 
 - **Toujours tester en conditions réelles** avant de considérer une
-  fonctionnalité backend↔daemon terminée : le bug du chemin proto (point 4
-  ci-dessus) était invisible en typecheck/build et existait probablement
-  depuis le tout début du projet malgré les mentions "validé en runtime"
-  dans le README — deux fonctionnalités (file manager, reinstall/
-  allocations) avaient déjà ce défaut caché avant d'être testées cette
-  session.
+  fonctionnalité backend↔daemon terminée : plusieurs bugs cette session
+  (chemin proto, race condition WebSocket) étaient invisibles en
+  typecheck/build et existaient depuis longtemps malgré des mentions
+  "validé en runtime" dans l'historique du projet.
 - Pas d'outil de capture d'écran/navigateur dans cet environnement : toute
   vérification UI passe par tsc + `next build` + appels HTTP/WebSocket
   directs reproduisant ce que ferait le dashboard. Le dire explicitement
   plutôt que prétendre une vérification visuelle.
 - Le dashboard tourne sur Next.js 16 avec des changements non standards
   (voir `dashboard/AGENTS.md`) — vérifier `node_modules/next/dist/docs/`
-  avant tout code touchant à des APIs Next.js peu familières (routing,
-  data fetching serveur). Le pattern actuel du projet est 100% client-side
-  (`"use client"` + `@tanstack/react-query` + fetch REST), pas de Server
-  Components/Actions utilisés — rester cohérent avec ça.
+  avant tout code touchant à des APIs Next.js peu familières. Le pattern
+  actuel est 100% client-side (`"use client"` + `@tanstack/react-query` +
+  fetch REST), pas de Server Components/Actions — rester cohérent.
+- Nouveau depuis la vague 2 : l'auth par clé API partage le même en-tête
+  `Authorization: Bearer` que le JWT (distinguée par le préfixe
+  `elysia_`) — si un jour un vrai schéma de token JWT changeait de forme,
+  vérifier que `JwtAuthGuard` (le check `startsWith(API_KEY_PREFIX)`) reste
+  cohérent.
