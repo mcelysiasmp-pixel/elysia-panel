@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 type Severity = 'INFO' | 'WARNING' | 'CRITICAL';
@@ -27,7 +26,11 @@ export class AuditService {
         targetType: entry.targetType,
         targetId: entry.targetId,
         severity: entry.severity ?? 'INFO',
-        metadata: entry.metadata as Prisma.InputJsonValue | undefined,
+        // `@prisma/client` 5.22.0 casse la résolution de types de `Prisma.InputJsonValue`
+        // sous pnpm (le chemin d'exports default.d.ts -> .prisma/client/default ->
+        // index perd l'alias `export import`, reproductible même hors CI) — on passe
+        // donc par `any` plutôt que par le nom du type, qui n'est plus atteignable.
+        metadata: (entry.metadata ?? undefined) as any,
         ip: entry.ip,
         userAgent: entry.userAgent,
       },

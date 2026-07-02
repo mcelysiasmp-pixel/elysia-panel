@@ -45,7 +45,12 @@ export class MonitoringService {
         diskAllocatedMb: nodes.reduce((sum, n) => sum + n.diskAllocatedMb, 0),
         diskCapacityMb: nodes.reduce((sum, n) => sum + n.diskMb, 0),
       },
-      servers: servers.reduce<Record<string, number>>((acc, row) => {
+      // Pas de generic explicite sur .reduce() : sous pnpm, le type de retour
+      // de groupBy() perd sa généricité à cause du même bug d'exports Prisma
+      // que audit.service.ts (cf. commentaire là-bas), ce qui fait échouer
+      // tsc sur "untyped function calls may not accept type arguments" dès
+      // qu'un <T> est fourni explicitement ici.
+      servers: servers.reduce((acc: Record<string, number>, row) => {
         acc[row.status] = row._count;
         return acc;
       }, {}),
