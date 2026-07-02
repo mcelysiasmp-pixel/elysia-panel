@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { SYSTEM_USER_ID } from '../src/common/constants';
 
 const prisma = new PrismaClient();
 
@@ -118,7 +119,19 @@ async function main() {
     skipDuplicates: true,
   });
 
-  console.log(`Seed terminé : ${PERMISSIONS.length} permissions, rôles "admin" (${adminRole.id}) et "client" (${clientRole.id}) créés.`);
+  await prisma.user.upsert({
+    where: { id: SYSTEM_USER_ID },
+    update: {},
+    create: {
+      id: SYSTEM_USER_ID,
+      email: 'system@elysia.local',
+      username: 'system',
+      status: 'ACTIVE',
+      roleId: adminRole.id,
+    },
+  });
+
+  console.log(`Seed terminé : ${PERMISSIONS.length} permissions, rôles "admin" (${adminRole.id}) et "client" (${clientRole.id}) créés, compte système prêt.`);
 }
 
 main()

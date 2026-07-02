@@ -11,9 +11,9 @@ export class DiscordStrategy extends PassportStrategy(Strategy, 'discord') {
     private readonly authService: AuthService,
   ) {
     super({
-      clientID: config.get<string>('oauth.discord.clientId') ?? 'unset',
-      clientSecret: config.get<string>('oauth.discord.clientSecret') ?? 'unset',
-      callbackURL: config.get<string>('oauth.discord.callbackUrl') ?? 'unset',
+      clientID: config.get<string>('oauth.discord.clientId') || 'unset',
+      clientSecret: config.get<string>('oauth.discord.clientSecret') || 'unset',
+      callbackURL: config.get<string>('oauth.discord.callbackUrl') || 'unset',
       scope: ['identify', 'email'],
     });
   }

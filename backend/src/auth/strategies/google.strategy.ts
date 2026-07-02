@@ -11,9 +11,9 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     private readonly authService: AuthService,
   ) {
     super({
-      clientID: config.get<string>('oauth.google.clientId') ?? 'unset',
-      clientSecret: config.get<string>('oauth.google.clientSecret') ?? 'unset',
-      callbackURL: config.get<string>('oauth.google.callbackUrl') ?? 'unset',
+      clientID: config.get<string>('oauth.google.clientId') || 'unset',
+      clientSecret: config.get<string>('oauth.google.clientSecret') || 'unset',
+      callbackURL: config.get<string>('oauth.google.callbackUrl') || 'unset',
       scope: ['profile', 'email'],
     });
   }

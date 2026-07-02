@@ -12,6 +12,7 @@ import * as qrcode from 'qrcode';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { RegisterDto } from './dto/register.dto';
+import type { AuthenticatedUser } from './types/authenticated-user';
 
 interface OAuthProfile {
   provider: 'discord' | 'google' | 'github';
@@ -123,6 +124,34 @@ export class AuthService {
       where: { tokenHash },
       data: { revoked: true },
     });
+  }
+
+  // Utilisé par le WebSocket Gateway (handshake non-HTTP, pas de passe par
+  // JwtAuthGuard) pour authentifier une connexion socket avec le même
+  // access token que l'API REST.
+  async resolveUserFromAccessToken(token: string): Promise<AuthenticatedUser> {
+    let payload: { sub: string };
+    try {
+      payload = this.jwt.verify(token, { secret: this.config.get<string>('jwt.accessSecret') });
+    } catch {
+      throw new UnauthorizedException('Token invalide ou expiré');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+      include: { role: { include: { permissions: { include: { permission: true } } } } },
+    });
+    if (!user || user.status !== 'ACTIVE') {
+      throw new UnauthorizedException('Compte invalide');
+    }
+
+    const permissions = user.role
+      ? user.role.isSystem && user.role.name === 'admin'
+        ? ['*']
+        : user.role.permissions.map((rp) => rp.permission.key)
+      : [];
+
+    return { id: user.id, email: user.email, username: user.username, roleId: user.roleId, permissions };
   }
 
   async validateOAuthLogin(profile: OAuthProfile) {

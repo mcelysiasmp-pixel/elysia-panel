@@ -93,6 +93,26 @@ export class NodeClientService implements OnModuleDestroy {
     });
   }
 
+  // Appel gRPC server-streaming (StreamConsole, StreamStats, TransferOut/In).
+  // Retourne une fonction d'annulation à appeler quand le client WS se déconnecte.
+  streamCall<TReq extends object, TChunk>(
+    nodeId: string,
+    params: NodeConnectionParams,
+    method: string,
+    request: TReq,
+    handlers: { onData: (chunk: TChunk) => void; onEnd?: () => void; onError?: (err: Error) => void },
+  ): () => void {
+    const client = this.getOrCreateClient(nodeId, params) as any;
+    if (typeof client[method] !== 'function') {
+      throw new Error(`Méthode gRPC streaming inconnue: ${method}`);
+    }
+    const call = client[method](request);
+    call.on('data', (chunk: TChunk) => handlers.onData(chunk));
+    call.on('end', () => handlers.onEnd?.());
+    call.on('error', (err: Error) => handlers.onError?.(err));
+    return () => call.cancel();
+  }
+
   disconnect(nodeId: string) {
     const client = this.clients.get(nodeId);
     if (client) {

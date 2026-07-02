@@ -7,7 +7,7 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from './auth/guards/permissions.guard';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { cors: true });
+  const app = await NestFactory.create(AppModule, { cors: true, rawBody: true });
 
   app.use(helmet());
   app.setGlobalPrefix('api');

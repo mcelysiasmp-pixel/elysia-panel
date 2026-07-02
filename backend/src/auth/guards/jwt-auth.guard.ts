@@ -15,6 +15,13 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       context.getClass(),
     ]);
     if (isPublic) return true;
+
+    // Endpoint de scrape Prometheus (@willsoto/nestjs-prometheus n'expose
+    // pas de moyen d'y attacher le décorateur @Public()). À restreindre au
+    // réseau interne via le reverse-proxy / firewall en production.
+    const request = context.switchToHttp().getRequest();
+    if (request?.url?.endsWith('/metrics')) return true;
+
     return super.canActivate(context);
   }
 }
