@@ -236,7 +236,7 @@ enum GameType {
 
 model ServerTemplate {
   id               String    @id @default(uuid())
-  name             String
+  name             String    @unique
   gameType         GameType
   description      String?
   dockerImage      String

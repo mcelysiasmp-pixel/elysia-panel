@@ -23,6 +23,11 @@ import type { AuthenticatedUser } from './types/authenticated-user';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Get('me')
+  me(@CurrentUser() user: AuthenticatedUser) {
+    return user;
+  }
+
   @Public()
   @Post('register')
   register(@Body() dto: RegisterDto, @Ip() ip: string) {

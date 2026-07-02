@@ -131,7 +131,59 @@ async function main() {
     },
   });
 
-  console.log(`Seed terminé : ${PERMISSIONS.length} permissions, rôles "admin" (${adminRole.id}) et "client" (${clientRole.id}) créés, compte système prêt.`);
+  const templates = [
+    {
+      name: 'Minecraft Paper (dernière version)',
+      gameType: 'MINECRAFT_JAVA' as const,
+      description: 'Serveur Paper haute performance, compatible plugins Bukkit/Spigot.',
+      dockerImage: 'itzg/minecraft-server:latest',
+      startupCommand: 'java -Xms{{MEMORY}}M -Xmx{{MEMORY}}M -jar server.jar nogui',
+      defaultVariables: { EULA: 'TRUE', TYPE: 'PAPER', MEMORY: '2048' },
+      minMemoryMb: 1024,
+    },
+    {
+      name: 'Minecraft Fabric',
+      gameType: 'MINECRAFT_JAVA' as const,
+      description: 'Serveur Fabric pour mods légers/performants.',
+      dockerImage: 'itzg/minecraft-server:latest',
+      startupCommand: 'java -Xms{{MEMORY}}M -Xmx{{MEMORY}}M -jar server.jar nogui',
+      defaultVariables: { EULA: 'TRUE', TYPE: 'FABRIC', MEMORY: '2048' },
+      minMemoryMb: 1024,
+    },
+    {
+      name: 'Minecraft Bedrock',
+      gameType: 'MINECRAFT_BEDROCK' as const,
+      description: 'Serveur Bedrock officiel (Geyser-compatible côté proxy Java).',
+      dockerImage: 'itzg/minecraft-bedrock-server:latest',
+      startupCommand: '/bedrock_server',
+      defaultVariables: { EULA: 'TRUE' },
+      minMemoryMb: 512,
+    },
+    {
+      name: 'Velocity (proxy)',
+      gameType: 'MINECRAFT_JAVA' as const,
+      description: 'Proxy Velocity pour relier plusieurs serveurs backend.',
+      dockerImage: 'itzg/mc-proxy:latest',
+      startupCommand: 'java -Xms{{MEMORY}}M -Xmx{{MEMORY}}M -jar velocity.jar',
+      defaultVariables: { TYPE: 'VELOCITY', MEMORY: '512' },
+      minMemoryMb: 256,
+    },
+    {
+      name: 'Docker générique',
+      gameType: 'GENERIC_DOCKER' as const,
+      description: "Fait tourner n'importe quelle image Docker fournie par le client (bot Discord, app web, ...).",
+      dockerImage: 'alpine:latest',
+      startupCommand: '{{STARTUP_COMMAND}}',
+      defaultVariables: { STARTUP_COMMAND: 'echo "configurez votre commande de démarrage"' },
+      minMemoryMb: 256,
+    },
+  ];
+
+  for (const t of templates) {
+    await prisma.serverTemplate.upsert({ where: { name: t.name }, update: {}, create: t });
+  }
+
+  console.log(`Seed terminé : ${PERMISSIONS.length} permissions, rôles "admin" (${adminRole.id}) et "client" (${clientRole.id}) créés, compte système prêt, ${templates.length} templates de serveur.`);
 }
 
 main()

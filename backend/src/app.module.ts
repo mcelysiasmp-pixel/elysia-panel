@@ -13,6 +13,8 @@ import { UsersModule } from './users/users.module';
 import { RolesModule } from './roles/roles.module';
 import { NodesModule } from './nodes/nodes.module';
 import { ServersModule } from './servers/servers.module';
+import { TemplatesModule } from './templates/templates.module';
+import { FilesModule } from './files/files.module';
 import { WebsocketModule } from './websocket/websocket.module';
 import { BackupsModule } from './backups/backups.module';
 import { ScheduledTasksModule } from './scheduled-tasks/scheduled-tasks.module';
@@ -46,6 +48,8 @@ import { MonitoringModule } from './monitoring/monitoring.module';
     RolesModule,
     NodesModule,
     ServersModule,
+    TemplatesModule,
+    FilesModule,
     WebsocketModule,
     BackupsModule,
     ScheduledTasksModule,
