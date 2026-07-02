@@ -1,0 +1,14 @@
+{
+  "name": "@elysia-panel/sdk",
+  "version": "0.1.0",
+  "description": "SDK TypeScript officiel pour l'API Elysia Panel",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

@@ -39,3 +39,5 @@ docker-images/**/context/
 # Test / coverage
 coverage/
 .turbo/
+__pycache__/
+*.pyc

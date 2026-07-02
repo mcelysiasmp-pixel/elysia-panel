@@ -1,0 +1,21 @@
+{
+  "name": "@elysia-panel/cli",
+  "version": "0.1.0",
+  "description": "CLI d'administration Elysia Panel",
+  "license": "MIT",
+  "bin": {
+    "elysia": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@elysia-panel/sdk": "workspace:*",
+    "commander": "^13.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.7.0"
+  }
+}

@@ -3,5 +3,3 @@ packages:
   - "backend"
   - "sdk/typescript"
   - "cli"
-  - "billing"
-  - "marketplace"

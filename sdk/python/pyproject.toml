@@ -1,0 +1,12 @@
+[project]
+name = "elysia-panel-sdk"
+version = "0.1.0"
+description = "SDK Python officiel pour l'API Elysia Panel"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+# Aucune dépendance externe : implémenté avec urllib (bibliothèque standard).
+dependencies = []
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
