@@ -9,7 +9,11 @@
 # de correspondance dans docs/architecture/01-global-architecture.md).
 #
 # Usage:
-#   sudo ./install.sh [--dry-run] [--domain panel.example.com] [--skip-ssl] [--skip-firewall]
+#   Installation one-liner (clone automatiquement le dépôt) :
+#     bash <(curl -fsSL https://raw.githubusercontent.com/<owner>/<repo>/main/installer/install.sh)
+#
+#   Ou depuis un clone local :
+#     sudo ./install.sh [--dry-run] [--domain panel.example.com] [--skip-ssl] [--skip-firewall]
 #
 # --dry-run       N'exécute aucune commande qui modifie l'état du système ;
 #                 affiche uniquement ce qui serait fait. Utile pour vérifier
@@ -18,13 +22,53 @@
 # --domain FQDN   Domaine du panel (défaut: elysia.local). Requis pour --ssl.
 # --skip-ssl      Ne configure pas certbot/Let's Encrypt.
 # --skip-firewall Ne touche pas à ufw.
+# --ref REF       Branche/tag à cloner en mode one-liner (défaut: main).
 # =============================================================================
 set -euo pipefail
 
 # -----------------------------------------------------------------------------
 # Configuration (namespace Elysia — voir .env.example à la racine du repo)
 # -----------------------------------------------------------------------------
-ELYSIA_REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ELYSIA_GIT_REPO="https://github.com/elysia-panel/elysia-panel.git"
+ELYSIA_GIT_REF="main"
+ELYSIA_SRC_DIR="/usr/local/src/elysia-panel"
+
+# Détecte si ce script tourne depuis un vrai clone (installer/install.sh au
+# sein du repo) ou en mode "one-liner" (bash <(curl ...), où BASH_SOURCE[0]
+# pointe vers une substitution de process du type /dev/fd/63 sans aucun
+# fichier voisin). Dans le second cas, le dépôt complet est cloné avant de
+# continuer, car le Backend/Dashboard/daemon ont besoin de leur code source
+# pour être buildés — un seul fichier récupéré par curl ne suffit pas.
+resolve_repo_dir() {
+  local script_dir
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || true)"
+
+  if [ -n "$script_dir" ] && [ -f "$script_dir/../backend/package.json" ]; then
+    (cd "$script_dir/.." && pwd)
+    return
+  fi
+
+  log "Mode one-liner détecté (script exécuté hors d'un clone local)." >&2
+  if [ "$DRY_RUN" -eq 1 ]; then
+    echo "  [dry-run] cloner $ELYSIA_GIT_REPO (réf: $ELYSIA_GIT_REF) dans $ELYSIA_SRC_DIR" >&2
+    echo "$ELYSIA_SRC_DIR"
+    return
+  fi
+
+  command -v git >/dev/null 2>&1 || (apt-get update -qq && apt-get install -y --no-install-recommends git ca-certificates)
+
+  if [ -d "$ELYSIA_SRC_DIR/.git" ]; then
+    log "Dépôt déjà cloné dans $ELYSIA_SRC_DIR, mise à jour..." >&2
+    git -C "$ELYSIA_SRC_DIR" fetch --depth 1 origin "$ELYSIA_GIT_REF" >&2
+    git -C "$ELYSIA_SRC_DIR" checkout -q FETCH_HEAD >&2
+  else
+    log "Clonage de $ELYSIA_GIT_REPO (réf: $ELYSIA_GIT_REF) dans $ELYSIA_SRC_DIR..." >&2
+    mkdir -p "$(dirname "$ELYSIA_SRC_DIR")"
+    git clone --depth 1 --branch "$ELYSIA_GIT_REF" "$ELYSIA_GIT_REPO" "$ELYSIA_SRC_DIR" >&2
+  fi
+  echo "$ELYSIA_SRC_DIR"
+}
+
 ELYSIA_OPT_DIR="/opt/elysia"
 ELYSIA_ETC_DIR="/etc/elysia"
 ELYSIA_VAR_DIR="/var/lib/elysia"
@@ -86,6 +130,7 @@ while [ $# -gt 0 ]; do
     --domain) ELYSIA_DOMAIN="$2"; shift ;;
     --skip-ssl) SKIP_SSL=1 ;;
     --skip-firewall) SKIP_FIREWALL=1 ;;
+    --ref) ELYSIA_GIT_REF="$2"; shift ;;
     -h|--help)
       grep '^#' "$0" | sed 's/^# \{0,1\}//'
       exit 0
@@ -94,6 +139,10 @@ while [ $# -gt 0 ]; do
   esac
   shift
 done
+
+# Résolu seulement maintenant : dépend de --dry-run/--ref déjà parsés, et de
+# log() déjà défini ci-dessus.
+ELYSIA_REPO_DIR="$(resolve_repo_dir)"
 
 # -----------------------------------------------------------------------------
 # Étape 0 — Pré-vérifications

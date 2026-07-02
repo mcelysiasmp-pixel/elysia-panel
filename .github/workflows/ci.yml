@@ -1,0 +1,111 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: elysia
+          POSTGRES_USER: elysia
+          POSTGRES_PASSWORD: elysia_ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U elysia"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://elysia:elysia_ci@localhost:5432/elysia?schema=public
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: backend/pnpm-lock.yaml
+      - name: Install
+        working-directory: backend
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        working-directory: backend
+        run: pnpm exec tsc --noEmit
+      - name: Build
+        working-directory: backend
+        run: pnpm run build
+      - name: Prisma migrate deploy (schema validity)
+        working-directory: backend
+        run: pnpm exec prisma migrate deploy
+      - name: Seed (idempotency check)
+        working-directory: backend
+        run: pnpm exec ts-node prisma/seed.ts
+
+  daemon:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+      - name: Build
+        working-directory: daemon
+        run: go build ./...
+      - name: Vet
+        working-directory: daemon
+        run: go vet ./...
+
+  dashboard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: dashboard/pnpm-lock.yaml
+      - name: Install
+        working-directory: dashboard
+        run: pnpm install --frozen-lockfile
+      - name: Build
+        working-directory: dashboard
+        run: pnpm run build
+
+  docker-images:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Les Dockerfiles dérivés référencent `FROM elysia/base:latest` en dur
+      # (voir docker-images/README.md) : on tague donc la base sur ce nom
+      # exact plutôt que d'introduire un ARG non utilisé par les autres images.
+      - name: Build base image
+        run: docker build -t elysia/base:latest docker-images/base
+      - name: Build minecraft-java image
+        run: docker build -t elysia/minecraft-java:ci docker-images/minecraft-java
+      - name: Build minecraft-bedrock image
+        run: docker build -t elysia/minecraft-bedrock:ci docker-images/minecraft-bedrock
+      - name: Build generic image
+        run: docker build -t elysia/generic:ci docker-images/generic
+
+  installer-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: ShellCheck
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y shellcheck
+          shellcheck installer/install.sh
+      - name: Dry-run
+        run: bash installer/install.sh --dry-run --domain ci.elysia.local
