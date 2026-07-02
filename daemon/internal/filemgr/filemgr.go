@@ -11,6 +11,13 @@ import (
 	"strings"
 )
 
+// UID/GID de l'utilisateur "elysia" dans toutes les images Docker officielles
+// (voir docker-images/base/Dockerfile) — le dossier de données doit
+// appartenir à cet UID pour que le processus du conteneur (non-root) puisse
+// y écrire une fois bind-monté sur /data.
+const containerUID = 1000
+const containerGID = 1000
+
 type Manager struct {
 	dataDir string // ex: /srv/elysia
 }
@@ -118,5 +125,9 @@ func (m *Manager) EnsureServerRoot(uuid string) (string, error) {
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		return "", err
 	}
+	// Best-effort : échoue silencieusement si le daemon ne tourne pas en
+	// root (dev local), auquel cas l'image devra être lancée avec un UID
+	// correspondant au propriétaire réel du dossier.
+	_ = os.Chown(root, containerUID, containerGID)
 	return root, nil
 }
