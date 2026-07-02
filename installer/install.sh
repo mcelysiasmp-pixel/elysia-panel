@@ -486,6 +486,7 @@ main() {
 
   log "Installation terminée."
   log "Panel accessible sur https://${ELYSIA_DOMAIN}:${ELYSIA_PORTS[NGINX_HTTPS_PORT]} (ou http://${ELYSIA_DOMAIN}:${ELYSIA_PORTS[NGINX_HTTP_PORT]} sans SSL)."
+  log "IMPORTANT: inscrivez-vous MAINTENANT sur /register — le tout premier compte créé devient automatiquement administrateur. Ne partagez l'accès qu'après."
   log "Logs: journalctl -u elysia-backend -u elysia-node -u elysia-dashboard -f"
 }
 

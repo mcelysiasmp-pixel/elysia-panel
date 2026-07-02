@@ -123,7 +123,7 @@ installateur, tests, lint). Résultat traité point par point :
    par le préfixe `elysia_`), scopes jamais plus larges que les
    permissions de l'utilisateur — recalculé à *chaque requête*, pas figé à
    la création. UI dans la page compte.
-4. (ce commit) — Marketplace admin (publier/vérifier un item, page
+4. `0595003` — Marketplace admin (publier/vérifier un item, page
    `admin/marketplace`), modpacks en un clic exposés dans `mods-panel.tsx`
    (Modrinth `.mrpack` par URL, CurseForge/FTB/ATLauncher/MultiMC par
    upload de zip — le backend le faisait déjà, aucune UI n'existait),
@@ -133,6 +133,18 @@ installateur, tests, lint). Résultat traité point par point :
    aurait disparu de cette même page juste après création), pagination
    "charger plus" sur les audit logs (`useInfiniteQuery`, au-delà des 100
    entrées fixes précédentes).
+5. (ce commit) — **Premier compte = admin automatiquement**
+   (`AuthService.register`). Découvert en préparant le tuto de mise en
+   route : rien dans le projet ne permettait d'obtenir un premier compte
+   admin après une install fraîche sans modifier la base directement (le
+   seed ne crée qu'un utilisateur système non-connectable). Compte les
+   utilisateurs réels existants (hors compte système) ; si zéro, le rôle
+   `admin` est assigné au lieu de `client`. Pattern standard pour du
+   self-hosted mono-opérateur (WordPress, Ghost, ...). Implique de
+   s'inscrire tout de suite après l'installation, avant d'exposer le
+   panel publiquement — désormais explicite dans le tuto de mise en route
+   (section dédiée, voir `installer/README.md` et le message de fin
+   d'`install.sh`).
 
 Tout testé en conditions réelles (backend + daemon + Docker), y compris :
 cycle 2FA complet avec un vrai code TOTP calculé, tentative d'escalade de

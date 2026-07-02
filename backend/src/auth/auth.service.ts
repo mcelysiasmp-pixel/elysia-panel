@@ -13,6 +13,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { RegisterDto } from './dto/register.dto';
 import type { AuthenticatedUser } from './types/authenticated-user';
+import { SYSTEM_USER_ID } from '../common/constants';
 
 interface OAuthProfile {
   provider: 'discord' | 'google' | 'github';
@@ -45,8 +46,17 @@ export class AuthService {
       throw new ConflictException("Email ou nom d'utilisateur déjà utilisé");
     }
 
-    const clientRole = await this.prisma.role.findUnique({
-      where: { name: 'client' },
+    // Premier compte réel créé sur l'instance (hors utilisateur système) :
+    // promu admin automatiquement. Sans ça, un panel fraîchement installé
+    // n'a aucun moyen d'obtenir un premier compte admin sans intervention
+    // directe en base — inacceptable pour un self-hosted destiné à
+    // n'importe qui, pas seulement à un opérateur à l'aise avec Prisma/SQL.
+    const existingRealUsers = await this.prisma.user.count({
+      where: { id: { not: SYSTEM_USER_ID } },
+    });
+    const roleName = existingRealUsers === 0 ? 'admin' : 'client';
+    const role = await this.prisma.role.findUnique({
+      where: { name: roleName },
     });
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
 
@@ -55,7 +65,7 @@ export class AuthService {
         email: dto.email,
         username: dto.username,
         passwordHash,
-        roleId: clientRole?.id,
+        roleId: role?.id,
       },
     });
 

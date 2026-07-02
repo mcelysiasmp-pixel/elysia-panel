@@ -69,6 +69,21 @@ sudo ./installer/install.sh --domain panel.example.com
   automatique — vérifié en conditions réelles, pas seulement simulé via
   process substitution locale.
 
+## Premiers pas après l'installation
+
+1. Ouvrez `https://<votre-domaine>` (ou l'URL HTTP affichée en fin
+   d'installation si `--skip-ssl`) et cliquez sur "Créer un compte".
+2. **Le tout premier compte créé sur l'instance devient automatiquement
+   administrateur** (voir `AuthService.register` — aucun autre compte créé
+   ensuite n'a ce privilège). Inscrivez-vous donc immédiatement après
+   l'installation, avant de partager l'URL du panel avec qui que ce soit.
+3. Une fois connecté en admin : créez un node (`Admin → Nodes`, l'Elysia
+   Node tourne déjà en local via le service systemd `elysia-node` installé
+   à l'étape précédente — utilisez `127.0.0.1` comme host gRPC si le
+   backend et le node sont sur la même machine), puis un serveur depuis
+   `Mes serveurs` avec un des templates préconfigurés (Minecraft Paper,
+   Fabric, Bedrock, Docker générique...).
+
 ## Non testé dans ce dépôt
 
 L'exécution réelle (sans `--dry-run`, avec root) sur une machine vierge
