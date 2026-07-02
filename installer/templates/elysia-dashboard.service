@@ -1,0 +1,16 @@
+[Unit]
+Description=Elysia Panel - Dashboard (Next.js)
+After=network.target elysia-backend.service
+
+[Service]
+Type=simple
+User=elysia
+Group=elysia
+WorkingDirectory=/opt/elysia/dashboard
+EnvironmentFile=/etc/elysia/dashboard.env
+ExecStart=/usr/bin/node node_modules/.bin/next start -p 9400
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

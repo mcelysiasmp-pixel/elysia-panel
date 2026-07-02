@@ -1,0 +1,21 @@
+[Unit]
+Description=Elysia Node - daemon Go (gestion Docker locale)
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+# Elysia Node doit pouvoir piloter Docker : exécuté par un utilisateur
+# membre du groupe "docker" (créé par l'installateur), pas root.
+User=elysia
+Group=elysia
+SupplementaryGroups=docker
+WorkingDirectory=/opt/elysia/daemon
+EnvironmentFile=/etc/elysia/node.env
+ExecStart=/opt/elysia/daemon/elysia-node
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target
