@@ -22,6 +22,10 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     const request = context.switchToHttp().getRequest();
     if (request?.url?.endsWith('/metrics')) return true;
 
+    // Documentation Swagger (/api/docs) : à restreindre également côté
+    // reverse-proxy en production si elle ne doit pas être publique.
+    if (request?.url?.startsWith('/api/docs')) return true;
+
     return super.canActivate(context);
   }
 }

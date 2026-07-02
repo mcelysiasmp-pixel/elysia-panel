@@ -1,5 +1,6 @@
 import { NestFactory, Reflector } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -43,6 +44,15 @@ async function bootstrap() {
 
   const reflector = app.get(Reflector);
   app.useGlobalGuards(new JwtAuthGuard(reflector), new PermissionsGuard(reflector));
+
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('Elysia Panel API')
+    .setDescription('API REST du Backend Elysia Panel — voir sdk/typescript pour un client généré.')
+    .setVersion('0.1.0')
+    .addBearerAuth()
+    .build();
+  const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('api/docs', app, swaggerDocument);
 
   const port = process.env.BACKEND_HTTP_PORT ?? 9401;
   await app.listen(port);
