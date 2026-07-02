@@ -1,0 +1,639 @@
+// =============================================================================
+// Elysia Panel — Schéma PostgreSQL (Prisma)
+// Étape 3 de la roadmap. Source de vérité du modèle de données du Backend.
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// -----------------------------------------------------------------------------
+// Identité, RBAC, sécurité
+// -----------------------------------------------------------------------------
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
+model User {
+  id                 String    @id @default(uuid())
+  email              String    @unique
+  username           String    @unique
+  passwordHash       String?
+  status             UserStatus @default(ACTIVE)
+  suspendedReason    String?
+  bannedReason       String?
+
+  // 2FA (TOTP)
+  twoFactorEnabled   Boolean   @default(false)
+  twoFactorSecret    String?
+  twoFactorRecoveryCodes String[]
+
+  // OAuth2 / OIDC
+  discordId          String?   @unique
+  googleId           String?   @unique
+  githubId           String?   @unique
+
+  roleId             String?
+  role               Role?     @relation(fields: [roleId], references: [id])
+
+  servers            Server[]        @relation("ServerOwner")
+  subUserOn          ServerSubUser[]
+  sessions           RefreshToken[]
+  auditLogs          AuditLog[]
+  tickets            SupportTicket[]
+  ticketMessages     TicketMessage[]
+  invoices           Invoice[]
+  subscriptions      Subscription[]
+  apiKeys            ApiKey[]
+  impersonatedById   String?
+
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([status])
+  @@map("users")
+}
+
+model Role {
+  id          String       @id @default(uuid())
+  name        String       @unique
+  description String?
+  isSystem    Boolean      @default(false) // ex: "admin", "client" non supprimables
+  permissions RolePermission[]
+  users       User[]
+
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@map("roles")
+}
+
+// Permissions granulaires façon "servers.power.start", "nodes.create", "billing.refund"
+model Permission {
+  id     String @id @default(uuid())
+  key    String @unique
+  group  String // ex: "servers", "nodes", "billing", "users"
+  roles  RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  userAgent String?
+  ip        String?
+  revoked   Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model ApiKey {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  keyPrefix  String
+  keyHash    String   @unique
+  scopes     String[]
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@map("api_keys")
+}
+
+enum AuditSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+model AuditLog {
+  id         String        @id @default(uuid())
+  actorId    String?
+  actor      User?         @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action     String        // ex: "server.create", "user.suspend", "node.maintenance.enable"
+  targetType String?       // ex: "Server", "User", "Node"
+  targetId   String?
+  severity   AuditSeverity @default(INFO)
+  metadata   Json?
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime      @default(now())
+
+  @@index([actorId])
+  @@index([targetType, targetId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// -----------------------------------------------------------------------------
+// Infrastructure : Nodes, réseau, Docker
+// -----------------------------------------------------------------------------
+
+enum NodeStatus {
+  ONLINE
+  OFFLINE
+  MAINTENANCE
+  DEGRADED
+}
+
+model Node {
+  id                  String       @id @default(uuid())
+  name                String       @unique
+  fqdn                String
+  region              String?
+  status              NodeStatus   @default(OFFLINE)
+  maintenanceMode     Boolean      @default(false)
+
+  // Connectivité gRPC (Elysia Node daemon)
+  grpcHost            String
+  grpcPort            Int          @default(9501)
+  mtlsFingerprint      String?
+
+  // Capacité déclarée / mesurée
+  cpuCores            Int
+  memoryMb            Int
+  diskMb              Int
+  cpuAllocatedPct     Int          @default(0)
+  memoryAllocatedMb   Int          @default(0)
+  diskAllocatedMb     Int          @default(0)
+  overallocateCpuPct  Int          @default(0)
+  overallocateMemPct  Int          @default(0)
+  overallocateDiskPct Int          @default(0)
+
+  dockerNetworkName   String       @default("elysia-net")
+  dockerNetworkSubnet String
+
+  allocations         NetworkAllocation[]
+  servers             Server[]
+
+  lastHeartbeatAt     DateTime?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  @@map("nodes")
+}
+
+model NetworkAllocation {
+  id        String  @id @default(uuid())
+  nodeId    String
+  node      Node    @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  ip        String
+  port      Int
+  serverId  String?
+  server    Server? @relation(fields: [serverId], references: [id])
+  isPrimary Boolean @default(false)
+
+  @@unique([nodeId, ip, port])
+  @@index([serverId])
+  @@map("network_allocations")
+}
+
+// -----------------------------------------------------------------------------
+// Catalogue de jeux / runtimes et images Docker
+// -----------------------------------------------------------------------------
+
+enum GameType {
+  MINECRAFT_JAVA
+  MINECRAFT_BEDROCK
+  DISCORD_BOT
+  GENERIC_DOCKER
+  WEB_HOSTING
+  VPS
+  FIVEM
+  RUST
+  TERRARIA
+  ARK
+  CS2
+  PALWORLD
+}
+
+model ServerTemplate {
+  id               String    @id @default(uuid())
+  name             String
+  gameType         GameType
+  description      String?
+  dockerImage      String
+  startupCommand   String
+  stopCommand      String    @default("stop")
+  installScript    String?   // script shell exécuté par Elysia Node à l'installation
+  configFiles      Json?     // mapping fichiers de config -> emplacements de parsing (façon egg Pterodactyl)
+  defaultVariables Json?     // variables d'environnement par défaut + validation
+  dockerImages     String[]  // images alternatives proposées (versions)
+  minMemoryMb      Int       @default(1024)
+  isPublic         Boolean   @default(true)
+
+  servers          Server[]
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@map("server_templates")
+}
+
+// -----------------------------------------------------------------------------
+// Serveurs
+// -----------------------------------------------------------------------------
+
+enum ServerStatus {
+  INSTALLING
+  INSTALL_FAILED
+  OFFLINE
+  STARTING
+  RUNNING
+  STOPPING
+  CRASHED
+  SUSPENDED
+  TRANSFERRING
+  RESTORING
+}
+
+model Server {
+  id             String        @id @default(uuid())
+  uuid           String        @unique @default(uuid()) // identifiant exposé (dossier de données, noms de conteneur)
+  name           String
+  description    String?
+
+  ownerId        String
+  owner          User          @relation("ServerOwner", fields: [ownerId], references: [id])
+
+  nodeId         String
+  node           Node          @relation(fields: [nodeId], references: [id])
+
+  templateId     String
+  template       ServerTemplate @relation(fields: [templateId], references: [id])
+  gameType       GameType
+
+  dockerImage    String
+  status         ServerStatus  @default(INSTALLING)
+  suspended      Boolean       @default(false)
+  suspendedReason String?
+
+  cpuLimitPct    Int           // 100 = 1 coeur
+  memoryLimitMb  Int
+  diskLimitMb    Int
+  swapLimitMb    Int           @default(0)
+  ioWeight       Int           @default(500)
+
+  environment    Json          @default("{}")
+  startupCommand String
+  dataPath       String        // /srv/elysia/servers/<uuid>
+
+  allocations    NetworkAllocation[]
+  subUsers       ServerSubUser[]
+  backups        Backup[]
+  scheduledTasks ScheduledTask[]
+  installedMods  InstalledMod[]
+  auditTargetId  String?
+
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([ownerId])
+  @@index([nodeId])
+  @@index([status])
+  @@map("servers")
+}
+
+// Permissions granulaires par sous-utilisateur sur un serveur donné
+model ServerSubUser {
+  id          String   @id @default(uuid())
+  serverId    String
+  server      Server   @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permissions String[] // ex: ["files.read","files.write","console.read","console.send","backups.create"]
+  createdAt   DateTime @default(now())
+
+  @@unique([serverId, userId])
+  @@map("server_sub_users")
+}
+
+enum ScheduledTaskAction {
+  POWER_START
+  POWER_STOP
+  POWER_RESTART
+  BACKUP_CREATE
+  COMMAND_SEND
+}
+
+model ScheduledTask {
+  id          String              @id @default(uuid())
+  serverId    String
+  server      Server              @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  name        String
+  cronExpr    String
+  action      ScheduledTaskAction
+  payload     Json?
+  enabled     Boolean             @default(true)
+  lastRunAt   DateTime?
+  nextRunAt   DateTime?
+  createdAt   DateTime            @default(now())
+
+  @@index([serverId])
+  @@map("scheduled_tasks")
+}
+
+// -----------------------------------------------------------------------------
+// Sauvegardes
+// -----------------------------------------------------------------------------
+
+enum BackupDriver {
+  LOCAL
+  S3
+  CLOUDFLARE_R2
+  BACKBLAZE_B2
+  MINIO
+  SFTP
+  FTP
+}
+
+enum BackupStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  RESTORING
+}
+
+model Backup {
+  id         String       @id @default(uuid())
+  serverId   String
+  server     Server       @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  name       String
+  driver     BackupDriver @default(LOCAL)
+  status     BackupStatus @default(PENDING)
+  sizeBytes  BigInt?
+  checksum   String?
+  remotePath String?
+  isAutomatic Boolean     @default(false)
+  failReason String?
+  createdAt  DateTime     @default(now())
+  completedAt DateTime?
+
+  @@index([serverId])
+  @@map("backups")
+}
+
+// -----------------------------------------------------------------------------
+// Mods / Modpacks (Modrinth, CurseForge, FTB, Technic, ATLauncher...)
+// -----------------------------------------------------------------------------
+
+enum ModSource {
+  MODRINTH
+  CURSEFORGE
+  FTB
+  TECHNIC
+  ATLAUNCHER
+  MULTIMC_EXPORT
+  MANUAL
+}
+
+model InstalledMod {
+  id          String    @id @default(uuid())
+  serverId    String
+  server      Server    @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  source      ModSource
+  projectId   String    // id Modrinth/CurseForge du projet
+  versionId   String    // id de la version installée
+  fileName    String
+  name        String
+  iconUrl     String?
+  dependencies Json?
+  installedAt DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([serverId, projectId])
+  @@index([serverId])
+  @@map("installed_mods")
+}
+
+// -----------------------------------------------------------------------------
+// Facturation
+// -----------------------------------------------------------------------------
+
+enum BillingCycle {
+  HOURLY
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+  ONE_TIME
+}
+
+model Product {
+  id           String        @id @default(uuid())
+  name         String
+  description  String?
+  gameType     GameType?
+  active       Boolean       @default(true)
+  plans        Plan[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@map("products")
+}
+
+model Plan {
+  id             String        @id @default(uuid())
+  productId      String
+  product        Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name           String
+  priceCents     Int
+  currency       String        @default("EUR")
+  billingCycle   BillingCycle  @default(MONTHLY)
+  cpuLimitPct    Int
+  memoryLimitMb  Int
+  diskLimitMb    Int
+  active         Boolean       @default(true)
+  subscriptions  Subscription[]
+
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@map("plans")
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  TRIALING
+  EXPIRED
+}
+
+model Subscription {
+  id                 String             @id @default(uuid())
+  userId             String
+  user               User               @relation(fields: [userId], references: [id])
+  planId             String
+  plan               Plan               @relation(fields: [planId], references: [id])
+  status             SubscriptionStatus @default(ACTIVE)
+  serverId           String?            @unique
+  stripeSubscriptionId String?          @unique
+  currentPeriodEnd   DateTime?
+  cancelAtPeriodEnd  Boolean            @default(false)
+  invoices           Invoice[]
+
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  @@index([userId])
+  @@map("subscriptions")
+}
+
+enum InvoiceStatus {
+  DRAFT
+  OPEN
+  PAID
+  VOID
+  UNCOLLECTIBLE
+}
+
+enum PaymentProvider {
+  STRIPE
+  PAYPAL
+  CRYPTO_BTC
+  CRYPTO_SOL
+  MANUAL
+}
+
+model Invoice {
+  id             String          @id @default(uuid())
+  userId         String
+  user           User            @relation(fields: [userId], references: [id])
+  subscriptionId String?
+  subscription   Subscription?   @relation(fields: [subscriptionId], references: [id])
+  number         String          @unique
+  status         InvoiceStatus   @default(DRAFT)
+  subtotalCents  Int
+  taxCents       Int             @default(0)
+  totalCents     Int
+  currency       String          @default("EUR")
+  provider       PaymentProvider?
+  providerRef    String?
+  couponId       String?
+  coupon         Coupon?         @relation(fields: [couponId], references: [id])
+  dueAt          DateTime?
+  paidAt         DateTime?
+  createdAt      DateTime        @default(now())
+
+  @@index([userId])
+  @@map("invoices")
+}
+
+model Coupon {
+  id            String    @id @default(uuid())
+  code          String    @unique
+  percentOff    Int?
+  amountOffCents Int?
+  maxRedemptions Int?
+  timesRedeemed  Int      @default(0)
+  expiresAt     DateTime?
+  active        Boolean   @default(true)
+  invoices      Invoice[]
+
+  createdAt     DateTime  @default(now())
+
+  @@map("coupons")
+}
+
+// -----------------------------------------------------------------------------
+// Support
+// -----------------------------------------------------------------------------
+
+enum TicketStatus {
+  OPEN
+  PENDING
+  RESOLVED
+  CLOSED
+}
+
+model SupportTicket {
+  id        String          @id @default(uuid())
+  userId    String
+  user      User            @relation(fields: [userId], references: [id])
+  subject   String
+  status    TicketStatus    @default(OPEN)
+  priority  Int             @default(1)
+  messages  TicketMessage[]
+
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  @@index([userId])
+  @@map("support_tickets")
+}
+
+model TicketMessage {
+  id        String        @id @default(uuid())
+  ticketId  String
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User          @relation(fields: [authorId], references: [id])
+  body      String
+  isStaff   Boolean       @default(false)
+  createdAt DateTime      @default(now())
+
+  @@index([ticketId])
+  @@map("ticket_messages")
+}
+
+// -----------------------------------------------------------------------------
+// Marketplace
+// -----------------------------------------------------------------------------
+
+enum MarketplaceItemType {
+  PLUGIN
+  THEME
+  TEMPLATE
+  DOCKER_IMAGE
+  EXTENSION
+}
+
+model MarketplaceItem {
+  id          String              @id @default(uuid())
+  type        MarketplaceItemType
+  name        String
+  slug        String              @unique
+  description String?
+  authorName  String
+  priceCents  Int                 @default(0)
+  version     String
+  downloadUrl String?
+  repoUrl     String?
+  verified    Boolean             @default(false)
+  downloads   Int                 @default(0)
+
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@map("marketplace_items")
+}

@@ -1,0 +1,203 @@
+// =============================================================================
+// Elysia Panel — Contrat gRPC interne entre le Backend (NestJS) et
+// Elysia Node (daemon Go, un exemplaire par serveur physique).
+// Ce fichier est la source de vérité : le Backend le consomme via
+// @grpc/proto-loader, le daemon Go génère son code avec protoc-gen-go-grpc.
+// Transport : mTLS uniquement (jamais exposé sans certificat client).
+// =============================================================================
+syntax = "proto3";
+
+package elysia.node.v1;
+
+option go_package = "github.com/elysia-panel/elysia-node/proto;nodev1";
+
+service NodeService {
+  // Cycle de vie du daemon / du node
+  rpc Ping(PingRequest) returns (PingResponse);
+  rpc GetSystemStats(Empty) returns (SystemStatsResponse);
+
+  // Cycle de vie des serveurs (conteneurs Docker)
+  rpc CreateServer(CreateServerRequest) returns (ServerActionResponse);
+  rpc StartServer(ServerIdRequest) returns (ServerActionResponse);
+  rpc StopServer(ServerIdRequest) returns (ServerActionResponse);
+  rpc RestartServer(ServerIdRequest) returns (ServerActionResponse);
+  rpc KillServer(ServerIdRequest) returns (ServerActionResponse);
+  rpc DeleteServer(ServerIdRequest) returns (ServerActionResponse);
+  rpc ReinstallServer(CreateServerRequest) returns (ServerActionResponse);
+  rpc SendCommand(SendCommandRequest) returns (ServerActionResponse);
+  rpc GetServerStats(ServerIdRequest) returns (ServerStatsResponse);
+
+  // Streaming temps réel (logs console + stats), relayé par le Backend au WS client
+  rpc StreamConsole(ServerIdRequest) returns (stream ConsoleLine);
+  rpc StreamStats(ServerIdRequest) returns (stream ServerStatsResponse);
+
+  // Fichiers
+  rpc ListFiles(ListFilesRequest) returns (ListFilesResponse);
+  rpc ReadFile(FileRequest) returns (FileContentResponse);
+  rpc WriteFile(WriteFileRequest) returns (FileActionResponse);
+  rpc DeleteFile(FileRequest) returns (FileActionResponse);
+  rpc RenameFile(RenameFileRequest) returns (FileActionResponse);
+  rpc CompressFiles(CompressRequest) returns (FileActionResponse);
+  rpc DecompressFile(FileRequest) returns (FileActionResponse);
+
+  // Sauvegardes
+  rpc CreateBackup(CreateBackupRequest) returns (BackupActionResponse);
+  rpc RestoreBackup(RestoreBackupRequest) returns (BackupActionResponse);
+  rpc DeleteBackup(BackupIdRequest) returns (BackupActionResponse);
+
+  // Migration entre nodes
+  rpc TransferOut(TransferRequest) returns (stream TransferProgress);
+  rpc TransferIn(TransferRequest) returns (stream TransferProgress);
+}
+
+message Empty {}
+
+message PingRequest { string nonce = 1; }
+message PingResponse { string nonce = 1; string node_version = 2; }
+
+message SystemStatsResponse {
+  double cpu_usage_pct = 1;
+  int64 memory_used_mb = 2;
+  int64 memory_total_mb = 3;
+  int64 disk_used_mb = 4;
+  int64 disk_total_mb = 5;
+  int32 containers_running = 6;
+  int32 containers_total = 7;
+}
+
+message CreateServerRequest {
+  string server_uuid = 1;
+  string docker_image = 2;
+  string startup_command = 3;
+  int32 cpu_limit_pct = 4;
+  int64 memory_limit_mb = 5;
+  int64 disk_limit_mb = 6;
+  int64 swap_limit_mb = 7;
+  int32 io_weight = 8;
+  map<string, string> environment = 9;
+  repeated PortMapping ports = 10;
+  string install_script = 11;
+}
+
+message PortMapping {
+  string ip = 1;
+  int32 port = 2;
+  string protocol = 3; // tcp | udp
+}
+
+message ServerIdRequest { string server_uuid = 1; }
+
+message ServerActionResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message SendCommandRequest {
+  string server_uuid = 1;
+  string command = 2;
+}
+
+message ServerStatsResponse {
+  string server_uuid = 1;
+  double cpu_usage_pct = 2;
+  int64 memory_used_mb = 3;
+  int64 disk_used_mb = 4;
+  int64 network_rx_bytes = 5;
+  int64 network_tx_bytes = 6;
+  string state = 7; // running|stopped|crashed
+  int64 uptime_seconds = 8;
+}
+
+message ConsoleLine {
+  string server_uuid = 1;
+  string line = 2;
+  int64 timestamp_ms = 3;
+  string stream = 4; // stdout|stderr|system
+}
+
+message ListFilesRequest {
+  string server_uuid = 1;
+  string path = 2;
+}
+
+message FileEntry {
+  string name = 1;
+  bool is_directory = 2;
+  int64 size_bytes = 3;
+  int64 modified_at_ms = 4;
+  string mode = 5;
+}
+
+message ListFilesResponse { repeated FileEntry entries = 1; }
+
+message FileRequest {
+  string server_uuid = 1;
+  string path = 2;
+}
+
+message FileContentResponse {
+  bytes content = 1;
+  bool truncated = 2;
+}
+
+message WriteFileRequest {
+  string server_uuid = 1;
+  string path = 2;
+  bytes content = 3;
+}
+
+message FileActionResponse { bool success = 1; string message = 2; }
+
+message RenameFileRequest {
+  string server_uuid = 1;
+  string from_path = 2;
+  string to_path = 3;
+}
+
+message CompressRequest {
+  string server_uuid = 1;
+  repeated string paths = 2;
+  string archive_name = 3;
+}
+
+message CreateBackupRequest {
+  string server_uuid = 1;
+  string backup_id = 2;
+  string driver = 3; // LOCAL|S3|CLOUDFLARE_R2|BACKBLAZE_B2|MINIO|SFTP|FTP
+  map<string, string> driver_config = 4;
+}
+
+message RestoreBackupRequest {
+  string server_uuid = 1;
+  string backup_id = 2;
+  string remote_path = 3;
+  string driver = 4;
+  map<string, string> driver_config = 5;
+}
+
+message BackupIdRequest {
+  string server_uuid = 1;
+  string backup_id = 2;
+  string remote_path = 3;
+  string driver = 4;
+  map<string, string> driver_config = 5;
+}
+
+message BackupActionResponse {
+  bool success = 1;
+  string message = 2;
+  int64 size_bytes = 3;
+  string checksum = 4;
+}
+
+message TransferRequest {
+  string server_uuid = 1;
+  string target_node_grpc_address = 2;
+}
+
+message TransferProgress {
+  int64 bytes_transferred = 1;
+  int64 bytes_total = 2;
+  bool completed = 3;
+  string error = 4;
+}
