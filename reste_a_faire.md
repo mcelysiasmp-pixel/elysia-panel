@@ -117,13 +117,30 @@ stats live).
    nécessite pas `users.read` alors que `GET /users` reste bloqué.
 8. `5968e71` — Détail + réponse ticket support côté dashboard (voir section
    ci-dessus).
-9. (à committer avec cette mise à jour) — Nodes : bouton delete câblé dans
-   `admin/nodes` (le toggle maintenance était en fait déjà câblé, juste
-   sans gestion d'erreur/toast — refait en `useMutation` propre au passage).
-   Testé en réel : toggle maintenance (ONLINE ↔ MAINTENANCE), suppression
-   bloquée avec message clair tant qu'un serveur est hébergé sur le node
-   (le backend le vérifie déjà), suppression qui réussit une fois le
-   serveur supprimé.
+9. `646f8b4` — Nodes : bouton delete câblé dans `admin/nodes` (le toggle
+   maintenance était en fait déjà câblé, juste sans gestion d'erreur/toast
+   — refait en `useMutation` propre au passage). Testé en réel : toggle
+   maintenance (ONLINE ↔ MAINTENANCE), suppression bloquée avec message
+   clair tant qu'un serveur est hébergé sur le node (le backend le vérifie
+   déjà), suppression qui réussit une fois le serveur supprimé.
+10. (à committer avec cette mise à jour) — Monitoring visualisé
+    (`admin/monitoring`) : les 3 stat cards CPU/RAM/Disque sont remplacées
+    par des meters colorés (bonne/warning/critique selon seuils, même
+    logique que les stats live serveur) et le bloc "Serveurs par statut"
+    par un bar chart horizontal trié par count, couleurs reprenant
+    exactement le mapping sémantique déjà utilisé par `status-badge.tsx`
+    (cohérence badges ↔ graphe). Palette validée avec le script du skill
+    dataviz (`validate_palette.js`) : CVD separation PASS, contrast WARN
+    attendu pour des couleurs de statut saturées — mitigé par les labels
+    texte + valeurs numériques toujours visibles à côté de chaque barre
+    (jamais de couleur seule pour porter l'identité). Pas de graphes
+    time-series : le résumé `/monitoring/summary` est un instantané ponctuel
+    (les gauges Prometheus internes ne sont pas exposées en série
+    temporelle interrogeable par le dashboard, seulement en scrape texte
+    `/metrics` pour un Prometheus/Grafana externe) — donc meters +
+    bar chart plutôt que sparklines ici. Vérifié la forme exacte de la
+    réponse `/monitoring/summary` avec de vraies données (node + serveurs
+    de plusieurs statuts) contre ce que consomment les nouveaux composants.
 
 ## Reste à faire — chantiers dashboard (priorisés avec l'utilisateur)
 
@@ -149,8 +166,7 @@ l'audit initial. Statut mis à jour :
 6. **Bouton install marketplace** — items listés en lecture seule
    seulement
 7. **Admin roles/permissions** — RBAC complet côté backend, aucune UI
-8. **Monitoring Prometheus visualisé** — seul un résumé JSON est affiché,
-   pas de graphes (utiliser le skill dataviz comme pour les stats live)
+8. ~~Monitoring Prometheus visualisé~~ ✅ fait (voir section ci-dessus)
 9. **Scheduled tasks UI** — équivalent "Schedules" Ptero, 100% absent
 10. ~~Nodes : maintenance + delete~~ ✅ fait (voir section ci-dessus)
 
