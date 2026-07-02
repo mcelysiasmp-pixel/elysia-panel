@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Activity, Plus, Wrench } from "lucide-react";
+import { Activity, Plus, Trash2, Wrench } from "lucide-react";
 import { api, ApiError } from "@/lib/api-client";
 import type { NodeItem } from "@/lib/types";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -52,6 +52,23 @@ export default function AdminNodesPage() {
   const healthMutation = useMutation({
     mutationFn: (id: string) => api.get<{ online: boolean }>(`/nodes/${id}/health`),
     onSuccess: (res) => toast[res.online ? "success" : "error"](res.online ? "Node en ligne" : "Node injoignable"),
+  });
+
+  const maintenanceMutation = useMutation({
+    mutationFn: (node: NodeItem) => api.post(`/nodes/${node.id}/maintenance/${node.maintenanceMode ? "disable" : "enable"}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-nodes"] });
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : "Erreur"),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/nodes/${id}`),
+    onSuccess: () => {
+      toast.success("Node supprimé");
+      queryClient.invalidateQueries({ queryKey: ["admin-nodes"] });
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : "Erreur"),
   });
 
   return (
@@ -143,19 +160,30 @@ export default function AdminNodesPage() {
               </TableCell>
               <TableCell>{n._count?.servers ?? 0}</TableCell>
               <TableCell className="flex justify-end gap-2">
-                <Button size="icon" variant="ghost" onClick={() => healthMutation.mutate(n.id)}>
+                <Button size="icon" variant="ghost" onClick={() => healthMutation.mutate(n.id)} title="Vérifier la connexion">
                   <Activity className="size-4" />
                 </Button>
                 <Button
                   size="icon"
-                  variant="ghost"
-                  onClick={() =>
-                    api
-                      .post(`/nodes/${n.id}/maintenance/${n.maintenanceMode ? "disable" : "enable"}`)
-                      .then(() => queryClient.invalidateQueries({ queryKey: ["admin-nodes"] }))
-                  }
+                  variant={n.maintenanceMode ? "secondary" : "ghost"}
+                  disabled={maintenanceMutation.isPending}
+                  title={n.maintenanceMode ? "Désactiver la maintenance" : "Activer la maintenance"}
+                  onClick={() => maintenanceMutation.mutate(n)}
                 >
                   <Wrench className="size-4" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  disabled={deleteMutation.isPending}
+                  title="Supprimer le node"
+                  onClick={() => {
+                    if (window.confirm(`Supprimer le node "${n.name}" ? Impossible s'il héberge encore des serveurs.`)) {
+                      deleteMutation.mutate(n.id);
+                    }
+                  }}
+                >
+                  <Trash2 className="size-4" />
                 </Button>
               </TableCell>
             </TableRow>

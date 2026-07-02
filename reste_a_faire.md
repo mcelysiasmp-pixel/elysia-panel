@@ -115,8 +115,15 @@ stats live).
    de démarrage), add/remove allocation, lookup + add/remove sub-user, y
    compris avec un compte non-admin pour confirmer que `/users/lookup` ne
    nécessite pas `users.read` alors que `GET /users` reste bloqué.
-8. (à committer avec cette mise à jour) — Détail + réponse ticket support
-   côté dashboard (voir section ci-dessus).
+8. `5968e71` — Détail + réponse ticket support côté dashboard (voir section
+   ci-dessus).
+9. (à committer avec cette mise à jour) — Nodes : bouton delete câblé dans
+   `admin/nodes` (le toggle maintenance était en fait déjà câblé, juste
+   sans gestion d'erreur/toast — refait en `useMutation` propre au passage).
+   Testé en réel : toggle maintenance (ONLINE ↔ MAINTENANCE), suppression
+   bloquée avec message clair tant qu'un serveur est hébergé sur le node
+   (le backend le vérifie déjà), suppression qui réussit une fois le
+   serveur supprimé.
 
 ## Reste à faire — chantiers dashboard (priorisés avec l'utilisateur)
 
@@ -145,8 +152,7 @@ l'audit initial. Statut mis à jour :
 8. **Monitoring Prometheus visualisé** — seul un résumé JSON est affiché,
    pas de graphes (utiliser le skill dataviz comme pour les stats live)
 9. **Scheduled tasks UI** — équivalent "Schedules" Ptero, 100% absent
-10. **Nodes : maintenance + delete** — endpoints backend prêts
-    (`nodes.controller.ts`), boutons non câblés dans `admin/nodes`
+10. ~~Nodes : maintenance + delete~~ ✅ fait (voir section ci-dessus)
 
 ## Points de vigilance pour la suite
 
