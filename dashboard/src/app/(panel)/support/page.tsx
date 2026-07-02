@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
@@ -87,15 +88,17 @@ export default function SupportPage() {
 
       <div className="grid gap-3">
         {ticketsQuery.data?.map((t) => (
-          <Card key={t.id}>
-            <CardHeader className="flex-row items-center justify-between">
-              <CardTitle className="text-base">{t.subject}</CardTitle>
-              <Badge variant="outline">{t.status}</Badge>
-            </CardHeader>
-            <CardContent className="text-xs text-muted-foreground">
-              Créé le {new Date(t.createdAt).toLocaleString()}
-            </CardContent>
-          </Card>
+          <Link key={t.id} href={`/support/${t.id}`}>
+            <Card className="transition-colors hover:border-primary/50">
+              <CardHeader className="flex-row items-center justify-between">
+                <CardTitle className="text-base">{t.subject}</CardTitle>
+                <Badge variant="outline">{t.status}</Badge>
+              </CardHeader>
+              <CardContent className="text-xs text-muted-foreground">
+                Créé le {new Date(t.createdAt).toLocaleString()}
+              </CardContent>
+            </Card>
+          </Link>
         ))}
       </div>
     </div>

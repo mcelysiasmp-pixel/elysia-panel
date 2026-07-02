@@ -101,20 +101,22 @@ stats live).
 6. `b87d327` — Fix race condition `stats:subscribe` (voir section ci-dessus)
    + fix bug parsing `memory_used_mb` (string int64) + stats live CPU/RAM
    dans le dashboard.
-7. (à committer avec cette mise à jour) — Onglet Paramètres serveur dans le
-   dashboard : général (nom/description/image/startup/env), réinstaller,
-   allocations réseau (ajout/suppression), sous-utilisateurs
-   (ajout/suppression avec permissions). Nouvel endpoint backend
-   `GET /users/lookup?email=` (accessible à tout utilisateur authentifié,
-   sans `users.read`) : nécessaire pour qu'un propriétaire de serveur (rôle
-   client, pas admin) puisse résoudre l'email d'un ami en `userId` avant de
-   l'ajouter comme sub-user — sans ça, `POST /servers/:id/subusers` était
-   inutilisable depuis le dashboard pour un non-admin (il exige un `userId`,
-   et `GET /users` est admin-only). Toute la chaîne testée en réel : update,
+7. `95a884a` — Onglet Paramètres serveur dans le dashboard : général
+   (nom/description/image/startup/env), réinstaller, allocations réseau
+   (ajout/suppression), sous-utilisateurs (ajout/suppression avec
+   permissions). Nouvel endpoint backend `GET /users/lookup?email=`
+   (accessible à tout utilisateur authentifié, sans `users.read`) :
+   nécessaire pour qu'un propriétaire de serveur (rôle client, pas admin)
+   puisse résoudre l'email d'un ami en `userId` avant de l'ajouter comme
+   sub-user — sans ça, `POST /servers/:id/subusers` était inutilisable
+   depuis le dashboard pour un non-admin (il exige un `userId`, et
+   `GET /users` est admin-only). Toute la chaîne testée en réel : update,
    reinstall (vérifié que le conteneur est recréé avec la nouvelle commande
    de démarrage), add/remove allocation, lookup + add/remove sub-user, y
    compris avec un compte non-admin pour confirmer que `/users/lookup` ne
    nécessite pas `users.read` alors que `GET /users` reste bloqué.
+8. (à committer avec cette mise à jour) — Détail + réponse ticket support
+   côté dashboard (voir section ci-dessus).
 
 ## Reste à faire — chantiers dashboard (priorisés avec l'utilisateur)
 
@@ -126,8 +128,16 @@ l'audit initial. Statut mis à jour :
    ci-dessus)
 3. ~~Settings serveur~~ ✅ fait (update/reinstall/allocations/subusers +
    nouvel endpoint `/users/lookup`)
-4. **Détail + réponse ticket support** — routes backend `:id`, `:id/reply`,
-   `:id/status` existent, non utilisées côté dashboard
+4. ~~Détail + réponse ticket support~~ ✅ fait — page
+   `support/[id]/page.tsx` : thread de messages (bulle distincte pour les
+   réponses staff), formulaire de réponse, changement de statut réservé aux
+   comptes avec `support.reply`. La page liste + la page détail sont
+   partagées entre client et staff (le scoping — un client ne voit que ses
+   propres tickets — est déjà géré côté backend par `listForUser`/
+   `findAccessibleOrThrow`, pas besoin d'une page admin séparée). Testé en
+   réel avec un compte client et un compte staff distincts : création,
+   réponse staff, changement de statut, et vérifié que le 403 backend sur
+   `:id/status` est bien renvoyé à un client qui tente de forcer le statut.
 5. **Checkout billing** — pas de flux de paiement Stripe côté dashboard
 6. **Bouton install marketplace** — items listés en lecture seule
    seulement
