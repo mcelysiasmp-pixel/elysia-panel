@@ -3,7 +3,7 @@
 ## Installation en une commande
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/HeatzyV2/elysia-panel/main/installer/install.sh) --domain panel.example.com
+bash <(curl -fsSL https://raw.githubusercontent.com/mcelysiasmp-pixel/elysia-panel/main/installer/install.sh) --domain panel.example.com
 ```
 
 Ajoutez `--dry-run` pour voir ce que le script ferait sans rien exécuter.

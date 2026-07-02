@@ -3,7 +3,7 @@
 ## One-liner (comme Pterodactyl)
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/HeatzyV2/elysia-panel/main/installer/install.sh) --domain panel.example.com
+bash <(curl -fsSL https://raw.githubusercontent.com/mcelysiasmp-pixel/elysia-panel/main/installer/install.sh) --domain panel.example.com
 ```
 
 Le script détecte qu'il tourne hors d'un clone local (`BASH_SOURCE` ne
@@ -15,7 +15,7 @@ que `main`.
 ## Depuis un clone local
 
 ```bash
-git clone https://github.com/HeatzyV2/elysia-panel.git
+git clone https://github.com/mcelysiasmp-pixel/elysia-panel.git
 cd elysia-panel
 sudo ./installer/install.sh --domain panel.example.com
 ```
@@ -64,7 +64,7 @@ sudo ./installer/install.sh --domain panel.example.com
      systématiquement en écriture réelle même en mode simulation — corrigé
      pour respecter le même contrat que le reste du script.
 - Le vrai one-liner testé contre le dépôt GitHub publié :
-  `bash <(curl -fsSL https://raw.githubusercontent.com/HeatzyV2/elysia-panel/main/installer/install.sh) --dry-run`
+  `bash <(curl -fsSL https://raw.githubusercontent.com/mcelysiasmp-pixel/elysia-panel/main/installer/install.sh) --dry-run`
   détecte bien le mode "hors clone local" et déclenche le clonage
   automatique — vérifié en conditions réelles, pas seulement simulé via
   process substitution locale.
