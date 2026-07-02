@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, RefreshCw, Trash2 } from "lucide-react";
+import { Plus, RefreshCw, ShieldAlert, ShieldCheck, Trash2 } from "lucide-react";
 import { api, ApiError } from "@/lib/api-client";
+import { useAuth } from "@/lib/auth-context";
 import type { ServerListItem } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,7 +45,85 @@ export function SettingsPanel({ server }: { server: ServerListItem }) {
       <ReinstallSettings server={server} />
       <AllocationsSettings server={server} onChanged={invalidate} />
       <SubUsersSettings server={server} onChanged={invalidate} />
+      <DangerZone server={server} onChanged={invalidate} />
     </div>
+  );
+}
+
+function DangerZone({ server, onChanged }: { server: ServerListItem; onChanged: () => void }) {
+  const router = useRouter();
+  const { hasPermission } = useAuth();
+  const canSuspend = hasPermission("servers.suspend");
+
+  const suspendMutation = useMutation({
+    mutationFn: () => api.post(`/servers/${server.id}/suspend`, { reason: "Suspendu depuis le panel" }),
+    onSuccess: () => {
+      toast.success("Serveur suspendu");
+      onChanged();
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : "Erreur"),
+  });
+
+  const unsuspendMutation = useMutation({
+    mutationFn: () => api.post(`/servers/${server.id}/unsuspend`),
+    onSuccess: () => {
+      toast.success("Serveur réactivé");
+      onChanged();
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : "Erreur"),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => api.delete(`/servers/${server.id}`),
+    onSuccess: () => {
+      toast.success("Serveur supprimé");
+      router.push("/servers");
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : "Erreur"),
+  });
+
+  return (
+    <Card className="border-destructive/40">
+      <CardHeader>
+        <CardTitle className="text-destructive">Zone dangereuse</CardTitle>
+        <CardDescription>Actions irréversibles ou visibles par le propriétaire du serveur.</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-wrap gap-3">
+        {canSuspend &&
+          (server.suspended ? (
+            <Button
+              variant="outline"
+              disabled={unsuspendMutation.isPending}
+              onClick={() => unsuspendMutation.mutate()}
+            >
+              <ShieldCheck className="mr-1 size-4" /> Réactiver le serveur
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              disabled={suspendMutation.isPending}
+              onClick={() => {
+                if (window.confirm(`Suspendre "${server.name}" ? Le propriétaire ne pourra plus le démarrer.`)) {
+                  suspendMutation.mutate();
+                }
+              }}
+            >
+              <ShieldAlert className="mr-1 size-4" /> Suspendre le serveur
+            </Button>
+          ))}
+        <Button
+          variant="destructive"
+          disabled={deleteMutation.isPending}
+          onClick={() => {
+            if (window.confirm(`Supprimer définitivement "${server.name}" ? Cette action est irréversible.`)) {
+              deleteMutation.mutate();
+            }
+          }}
+        >
+          <Trash2 className="mr-1 size-4" /> Supprimer le serveur
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
 

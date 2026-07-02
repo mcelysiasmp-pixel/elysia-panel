@@ -50,6 +50,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       username: user.username,
       roleId: user.roleId,
       permissions,
+      twoFactorEnabled: user.twoFactorEnabled,
       impersonatedBy: payload.impersonatedBy,
     };
   }

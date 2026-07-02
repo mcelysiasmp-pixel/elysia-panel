@@ -17,6 +17,7 @@ const SYSTEM_ACTOR: AuthenticatedUser = {
   username: 'system',
   roleId: null,
   permissions: ['*'],
+  twoFactorEnabled: false,
 };
 
 @Injectable()

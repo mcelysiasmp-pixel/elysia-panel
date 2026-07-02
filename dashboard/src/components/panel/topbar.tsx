@@ -1,6 +1,7 @@
 "use client";
 
 import { useTheme } from "next-themes";
+import { useRouter } from "next/navigation";
 import { Moon, Sun, LogOut, User as UserIcon } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 export function PanelTopbar() {
   const { theme, setTheme } = useTheme();
   const { user, logout } = useAuth();
+  const router = useRouter();
 
   return (
     <header className="flex h-14 items-center justify-end gap-2 border-b px-4">
@@ -34,7 +36,7 @@ export function PanelTopbar() {
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>{user?.email}</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem>
+          <DropdownMenuItem onClick={() => router.push("/account")}>
             <UserIcon className="mr-2 size-4" />
             Mon profil
           </DropdownMenuItem>

@@ -4,5 +4,6 @@ export interface AuthenticatedUser {
   username: string;
   roleId: string | null;
   permissions: string[];
+  twoFactorEnabled: boolean;
   impersonatedBy?: string;
 }

@@ -155,6 +155,43 @@ export class AuthService {
     });
   }
 
+  // Changement de mot de passe self-service : exige l'ancien mot de passe
+  // (contrairement à UsersService.resetPassword, réservé aux admins via
+  // users.update, qui ne le vérifie pas). Révoque les autres sessions par
+  // cohérence avec le comportement admin.
+  async changeOwnPassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ) {
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+    });
+    if (
+      !user.passwordHash ||
+      !(await bcrypt.compare(currentPassword, user.passwordHash))
+    ) {
+      throw new UnauthorizedException('Mot de passe actuel incorrect');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+    await this.prisma.refreshToken.updateMany({
+      where: { userId },
+      data: { revoked: true },
+    });
+    await this.audit.log({
+      actorId: userId,
+      action: 'user.change_password',
+      targetType: 'User',
+      targetId: userId,
+      severity: 'WARNING',
+    });
+  }
+
   // Utilisé par le WebSocket Gateway (handshake non-HTTP, pas de passe par
   // JwtAuthGuard) pour authentifier une connexion socket avec le même
   // access token que l'API REST.
@@ -185,6 +222,7 @@ export class AuthService {
       email: user.email,
       username: user.username,
       roleId: user.roleId,
+      twoFactorEnabled: user.twoFactorEnabled,
       permissions,
     };
   }

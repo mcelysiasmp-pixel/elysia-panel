@@ -66,6 +66,20 @@ export class AuthController {
     return { success: true };
   }
 
+  @Post('change-password')
+  async changePassword(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body('currentPassword') currentPassword: string,
+    @Body('newPassword') newPassword: string,
+  ) {
+    await this.authService.changeOwnPassword(
+      user.id,
+      currentPassword,
+      newPassword,
+    );
+    return { success: true };
+  }
+
   @Post('2fa/generate')
   generateTwoFactor(@CurrentUser() user: AuthenticatedUser) {
     return this.authService.generateTwoFactorSecret(user.id);
