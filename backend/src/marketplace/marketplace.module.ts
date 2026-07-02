@@ -7,5 +7,6 @@ import { AuditModule } from '../audit/audit.module';
   imports: [AuditModule],
   controllers: [MarketplaceController],
   providers: [MarketplaceService],
+  exports: [MarketplaceService],
 })
 export class MarketplaceModule {}

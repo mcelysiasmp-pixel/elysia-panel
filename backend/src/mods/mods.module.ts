@@ -5,9 +5,10 @@ import { ModsService } from './mods.service';
 import { ModsController } from './mods.controller';
 import { AuditModule } from '../audit/audit.module';
 import { ServersModule } from '../servers/servers.module';
+import { MarketplaceModule } from '../marketplace/marketplace.module';
 
 @Module({
-  imports: [AuditModule, ServersModule],
+  imports: [AuditModule, ServersModule, MarketplaceModule],
   controllers: [ModsController],
   providers: [ModrinthService, CurseforgeService, ModsService],
   exports: [ModrinthService, CurseforgeService, ModsService],

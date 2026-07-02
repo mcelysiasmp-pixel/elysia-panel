@@ -1,9 +1,12 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import AdmZip = require('adm-zip');
+import axios from 'axios';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { ServersService } from '../servers/servers.service';
 import { NodeClientService } from '../grpc-client/node-client.service';
+import { MarketplaceService } from '../marketplace/marketplace.service';
+import { assertSafeDownloadUrl } from '../common/url-safety';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user';
 import { ModrinthService } from './modrinth.service';
 import { CurseforgeService } from './curseforge.service';
@@ -32,6 +35,7 @@ export class ModsService {
     private readonly nodeClient: NodeClientService,
     private readonly modrinth: ModrinthService,
     private readonly curseforge: CurseforgeService,
+    private readonly marketplace: MarketplaceService,
   ) {}
 
   // -------------------------------------------------------------------
@@ -86,6 +90,59 @@ export class ModsService {
     });
 
     await this.audit.log({ actorId: user.id, action: 'mod.install', targetType: 'Server', targetId: serverId, metadata: { source: 'CURSEFORGE', modId, fileId } });
+    return record;
+  }
+
+  // Marketplace : uniquement les items de type PLUGIN pour l'instant — un
+  // THEME/TEMPLATE/DOCKER_IMAGE/EXTENSION n'a pas la même sémantique
+  // d'installation "fichier déposé sur un serveur" (voir reste_a_faire.md).
+  // Items payants exclus tant qu'il n'y a pas de flux de paiement Stripe
+  // côté dashboard pour les facturer.
+  async installFromMarketplace(serverId: string, slug: string, targetDir: string, user: AuthenticatedUser) {
+    const server = await this.servers.findAccessibleOrThrow(serverId, user);
+    const item = await this.marketplace.get(slug);
+
+    if (item.type !== 'PLUGIN') {
+      throw new BadRequestException("Seuls les items de type PLUGIN peuvent être installés automatiquement sur un serveur");
+    }
+    if (item.priceCents > 0) {
+      throw new BadRequestException('Achat requis avant installation (paiement non disponible pour le moment)');
+    }
+    if (!item.downloadUrl) {
+      throw new BadRequestException("Cet item n'a pas de fichier associé");
+    }
+
+    assertSafeDownloadUrl(item.downloadUrl);
+    const { data } = await axios.get<ArrayBuffer>(item.downloadUrl, { responseType: 'arraybuffer' });
+    const content = Buffer.from(data);
+
+    const url = new URL(item.downloadUrl);
+    const baseName = url.pathname.split('/').pop();
+    const fileName = baseName && baseName.includes('.') ? baseName : `${item.slug}-${item.version}.jar`;
+
+    await this.writeToServer(server, `${targetDir}/${fileName}`, content);
+
+    const record = await this.prisma.installedMod.upsert({
+      where: { serverId_projectId: { serverId, projectId: item.id } },
+      update: { versionId: item.version, fileName, name: item.name },
+      create: {
+        serverId,
+        source: 'MANUAL',
+        projectId: item.id,
+        versionId: item.version,
+        fileName,
+        name: item.name,
+      },
+    });
+
+    await this.marketplace.incrementDownloads(slug);
+    await this.audit.log({
+      actorId: user.id,
+      action: 'mod.install',
+      targetType: 'Server',
+      targetId: serverId,
+      metadata: { source: 'MARKETPLACE', slug },
+    });
     return record;
   }
 

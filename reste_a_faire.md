@@ -141,6 +141,9 @@ stats live).
     bar chart plutôt que sparklines ici. Vérifié la forme exacte de la
     réponse `/monitoring/summary` avec de vraies données (node + serveurs
     de plusieurs statuts) contre ce que consomment les nouveaux composants.
+11. (à committer avec cette mise à jour) — Bouton install marketplace,
+    scope réduit aux items PLUGIN gratuits (voir section ci-dessous pour le
+    détail et le raisonnement sur le scope).
 
 ## Reste à faire — chantiers dashboard (priorisés avec l'utilisateur)
 
@@ -163,8 +166,29 @@ l'audit initial. Statut mis à jour :
    réponse staff, changement de statut, et vérifié que le 403 backend sur
    `:id/status` est bien renvoyé à un client qui tente de forcer le statut.
 5. **Checkout billing** — pas de flux de paiement Stripe côté dashboard
-6. **Bouton install marketplace** — items listés en lecture seule
-   seulement
+6. ~~Bouton install marketplace~~ ✅ fait, **scope volontairement réduit** :
+   seuls les items `type: PLUGIN` et gratuits (`priceCents === 0`) sont
+   installables — le marketplace a 5 types (PLUGIN/THEME/TEMPLATE/
+   DOCKER_IMAGE/EXTENSION) dont l'installation n'a pas la même sémantique
+   (un THEME ou un TEMPLATE ne se "dépose" pas sur un serveur comme un
+   fichier plugin), et il n'y a pas encore de paiement Stripe pour facturer
+   les items payants (point 5 ci-dessus) — donc INSTALLER resterait
+   incorrect pour les 4 autres types. Backend : nouvelle méthode
+   `ModsService.installFromMarketplace` (réutilise `ModSource.MANUAL`,
+   déjà présent dans l'enum et inutilisé jusqu'ici — **pas de migration
+   Prisma nécessaire**), réutilise le garde-fou SSRF existant
+   `assertSafeDownloadUrl` (allowlist de hosts) sur `item.downloadUrl` —
+   important ici car ce champ est saisi par un publisher marketplace, pas
+   une API de confiance comme Modrinth/CurseForge. Nouvel endpoint
+   `POST /servers/:serverId/mods/marketplace`. Dashboard : bouton
+   "Installer" visible uniquement sur les cartes PLUGIN gratuites, dialog
+   de sélection du serveur cible + dossier d'installation. Testé en réel
+   (backend + daemon + conteneur Docker) : téléchargement réel d'un fichier
+   depuis un host autorisé de l'allowlist et écriture confirmée dans le
+   conteneur (`plugins/test-plugin-debug-1.0.0.jar`, taille correcte),
+   compteur `downloads` incrémenté, apparition dans `GET .../mods`, et les
+   3 garde-fous testés individuellement : 400 sur type non-PLUGIN, 400 sur
+   item payant, 400 SSRF sur host non autorisé.
 7. **Admin roles/permissions** — RBAC complet côté backend, aucune UI
 8. ~~Monitoring Prometheus visualisé~~ ✅ fait (voir section ci-dessus)
 9. **Scheduled tasks UI** — équivalent "Schedules" Ptero, 100% absent

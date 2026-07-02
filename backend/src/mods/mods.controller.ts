@@ -97,6 +97,17 @@ export class ModsController {
     return this.mods.installFromCurseforge(serverId, modId, fileId, targetDir ?? 'mods', user);
   }
 
+  @Post('servers/:serverId/mods/marketplace')
+  @RequirePermissions('mods.install')
+  installMarketplace(
+    @Param('serverId') serverId: string,
+    @Body('slug') slug: string,
+    @Body('targetDir') targetDir: string | undefined,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.mods.installFromMarketplace(serverId, slug, targetDir ?? 'plugins', user);
+  }
+
   @Delete('servers/:serverId/mods/:installedModId')
   @RequirePermissions('mods.remove')
   uninstall(
