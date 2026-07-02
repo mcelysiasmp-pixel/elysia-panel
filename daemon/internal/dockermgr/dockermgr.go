@@ -197,6 +197,18 @@ func (m *Manager) DeleteServer(ctx context.Context, uuid string) error {
 	return m.cli.NetworkRemove(ctx, serverNetworkName(uuid))
 }
 
+// RecreateServer supprime le conteneur existant (données et réseau
+// conservés) puis le recrée avec spec — utilisé par ReinstallServer quand la
+// config (image/startup/env) a changé et qu'un simple redémarrage ne
+// suffit pas à la relire.
+func (m *Manager) RecreateServer(ctx context.Context, spec ServerSpec) error {
+	m.detachStdin(spec.UUID)
+	if err := m.cli.ContainerRemove(ctx, containerName(spec.UUID), container.RemoveOptions{Force: true}); err != nil && !client.IsErrNotFound(err) {
+		return fmt.Errorf("suppression ancien conteneur: %w", err)
+	}
+	return m.CreateServer(ctx, spec)
+}
+
 // SendCommand écrit une ligne de commande dans le stdin du conteneur — c'est
 // ainsi que les serveurs Minecraft (et la plupart des jeux en console)
 // reçoivent des commandes admin ("stop", "say ...", etc).

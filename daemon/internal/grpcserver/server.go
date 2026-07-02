@@ -76,6 +76,48 @@ func (s *Server) CreateServer(ctx context.Context, req *nodev1.CreateServerReque
 	return &nodev1.ServerActionResponse{Success: true, Message: "serveur créé"}, nil
 }
 
+func (s *Server) ReinstallServer(ctx context.Context, req *nodev1.CreateServerRequest) (*nodev1.ServerActionResponse, error) {
+	dataPath, err := s.files.EnsureServerRoot(req.GetServerUuid())
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "préparation dossier de données: %v", err)
+	}
+
+	ports := make([]dockermgr.PortSpec, 0, len(req.GetPorts()))
+	for _, p := range req.GetPorts() {
+		ip := p.GetIp()
+		if ip == "" {
+			ip = "0.0.0.0"
+		}
+		ports = append(ports, dockermgr.PortSpec{IP: ip, Port: int(p.GetPort()), Protocol: p.GetProtocol()})
+	}
+
+	spec := dockermgr.ServerSpec{
+		UUID:           req.GetServerUuid(),
+		Image:          req.GetDockerImage(),
+		StartupCommand: req.GetStartupCommand(),
+		CPULimitPct:    req.GetCpuLimitPct(),
+		MemoryLimitMb:  req.GetMemoryLimitMb(),
+		DiskLimitMb:    req.GetDiskLimitMb(),
+		SwapLimitMb:    req.GetSwapLimitMb(),
+		IOWeight:       req.GetIoWeight(),
+		Environment:    req.GetEnvironment(),
+		Ports:          ports,
+		DataPath:       dataPath,
+	}
+
+	if err := s.docker.RecreateServer(ctx, spec); err != nil {
+		return &nodev1.ServerActionResponse{Success: false, Message: err.Error()}, nil
+	}
+
+	if req.GetInstallScript() != "" {
+		if err := s.files.Write(req.GetServerUuid(), "install.sh", []byte(req.GetInstallScript())); err != nil {
+			return &nodev1.ServerActionResponse{Success: false, Message: fmt.Sprintf("écriture install.sh: %v", err)}, nil
+		}
+	}
+
+	return &nodev1.ServerActionResponse{Success: true, Message: "serveur réinstallé"}, nil
+}
+
 func (s *Server) StartServer(ctx context.Context, req *nodev1.ServerIdRequest) (*nodev1.ServerActionResponse, error) {
 	if err := s.docker.StartServer(ctx, req.GetServerUuid()); err != nil {
 		return &nodev1.ServerActionResponse{Success: false, Message: err.Error()}, nil
@@ -188,6 +230,13 @@ func (s *Server) DeleteFile(_ context.Context, req *nodev1.FileRequest) (*nodev1
 
 func (s *Server) RenameFile(_ context.Context, req *nodev1.RenameFileRequest) (*nodev1.FileActionResponse, error) {
 	if err := s.files.Rename(req.GetServerUuid(), req.GetFromPath(), req.GetToPath()); err != nil {
+		return &nodev1.FileActionResponse{Success: false, Message: err.Error()}, nil
+	}
+	return &nodev1.FileActionResponse{Success: true}, nil
+}
+
+func (s *Server) CreateDirectory(_ context.Context, req *nodev1.FileRequest) (*nodev1.FileActionResponse, error) {
+	if err := s.files.Mkdir(req.GetServerUuid(), req.GetPath()); err != nil {
 		return &nodev1.FileActionResponse{Success: false, Message: err.Error()}, nil
 	}
 	return &nodev1.FileActionResponse{Success: true}, nil

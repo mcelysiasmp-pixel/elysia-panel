@@ -63,4 +63,10 @@ export class FilesService {
       to_path: toPath,
     });
   }
+
+  async mkdir(serverId: string, path: string, user: AuthenticatedUser) {
+    const { server, params } = await this.connFor(serverId, user);
+    await this.nodeClient.call(server.nodeId, params, 'CreateDirectory', { server_uuid: server.uuid, path });
+    await this.audit.log({ actorId: user.id, action: 'file.mkdir', targetType: 'Server', targetId: serverId, metadata: { path } });
+  }
 }

@@ -1,9 +1,10 @@
-import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import { RequirePermissions } from '../common/decorators/permissions.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user';
 import { ServersService } from './servers.service';
 import { CreateServerDto } from './dto/create-server.dto';
+import { UpdateServerDto } from './dto/update-server.dto';
 
 @Controller('servers')
 export class ServersController {
@@ -25,6 +26,34 @@ export class ServersController {
   @RequirePermissions('servers.create')
   create(@Body() dto: CreateServerDto, @CurrentUser() user: AuthenticatedUser) {
     return this.servers.create(dto, user);
+  }
+
+  @Patch(':id')
+  @RequirePermissions('servers.update')
+  update(@Param('id') id: string, @Body() dto: UpdateServerDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.servers.update(id, dto, user);
+  }
+
+  @Post(':id/reinstall')
+  @RequirePermissions('servers.update')
+  reinstall(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.servers.reinstall(id, user);
+  }
+
+  @Post(':id/allocations')
+  @RequirePermissions('servers.update')
+  addAllocation(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.servers.addAllocation(id, user);
+  }
+
+  @Delete(':id/allocations/:allocationId')
+  @RequirePermissions('servers.update')
+  removeAllocation(
+    @Param('id') id: string,
+    @Param('allocationId') allocationId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.servers.removeAllocation(id, allocationId, user);
   }
 
   @Post(':id/power/start')

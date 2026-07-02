@@ -12,6 +12,7 @@ import { NodesService } from '../nodes/nodes.service';
 import { NodeClientService } from '../grpc-client/node-client.service';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user';
 import { CreateServerDto } from './dto/create-server.dto';
+import { UpdateServerDto } from './dto/update-server.dto';
 
 const PORT_RANGE_START = 25565;
 const PORT_RANGE_END = 25665;
@@ -39,7 +40,12 @@ export class ServersService {
   async findAccessibleOrThrow(id: string, user: AuthenticatedUser) {
     const server = await this.prisma.server.findUnique({
       where: { id },
-      include: { node: true, template: true, allocations: true, subUsers: true },
+      include: {
+        node: true,
+        template: true,
+        allocations: true,
+        subUsers: { include: { user: { select: { id: true, username: true, email: true } } } },
+      },
     });
     if (!server) throw new NotFoundException('Serveur introuvable');
 
@@ -257,6 +263,89 @@ export class ServersService {
       targetType: 'Server',
       targetId: id,
       severity: 'WARNING',
+    });
+  }
+
+  async update(id: string, dto: UpdateServerDto, actor: AuthenticatedUser) {
+    await this.findAccessibleOrThrow(id, actor);
+    const server = await this.prisma.server.update({
+      where: { id },
+      data: {
+        name: dto.name,
+        description: dto.description,
+        dockerImage: dto.dockerImage,
+        startupCommand: dto.startupCommand,
+        environment: dto.environment,
+      },
+    });
+    await this.audit.log({
+      actorId: actor.id,
+      action: 'server.update',
+      targetType: 'Server',
+      targetId: id,
+      metadata: { fields: Object.keys(dto) },
+    });
+    return server;
+  }
+
+  // Recrée le conteneur avec la configuration actuelle (image/startup/env en
+  // base) : nécessaire pour qu'un changement de variables ou d'image Docker
+  // prenne effet, le simple redémarrage ne relit pas cette configuration.
+  async reinstall(id: string, actor: AuthenticatedUser) {
+    const server = await this.findAccessibleOrThrow(id, actor);
+    await this.nodeClient.call(
+      server.nodeId,
+      { host: server.node.grpcHost, port: server.node.grpcPort },
+      'ReinstallServer',
+      {
+        server_uuid: server.uuid,
+        docker_image: server.dockerImage,
+        startup_command: server.startupCommand,
+        cpu_limit_pct: server.cpuLimitPct,
+        memory_limit_mb: server.memoryLimitMb,
+        disk_limit_mb: server.diskLimitMb,
+        swap_limit_mb: server.swapLimitMb,
+        io_weight: server.ioWeight,
+        environment: server.environment as Record<string, string>,
+        ports: server.allocations.map((a) => ({ ip: a.ip, port: a.port, protocol: 'tcp' })),
+        install_script: server.template.installScript ?? '',
+      },
+    );
+    await this.prisma.server.update({ where: { id }, data: { status: 'OFFLINE' } });
+    await this.audit.log({ actorId: actor.id, action: 'server.reinstall', targetType: 'Server', targetId: id });
+    return { success: true };
+  }
+
+  async addAllocation(serverId: string, actor: AuthenticatedUser) {
+    const server = await this.findAccessibleOrThrow(serverId, actor);
+    const allocation = await this.prisma.$transaction(async (tx) => {
+      const port = await this.allocatePort(tx, server.nodeId);
+      return tx.networkAllocation.create({
+        data: { nodeId: server.nodeId, ip: '0.0.0.0', port, serverId, isPrimary: false },
+      });
+    });
+    await this.audit.log({
+      actorId: actor.id,
+      action: 'server.allocation.add',
+      targetType: 'Server',
+      targetId: serverId,
+      metadata: { port: allocation.port },
+    });
+    return allocation;
+  }
+
+  async removeAllocation(serverId: string, allocationId: string, actor: AuthenticatedUser) {
+    await this.findAccessibleOrThrow(serverId, actor);
+    const allocation = await this.prisma.networkAllocation.findUnique({ where: { id: allocationId } });
+    if (!allocation || allocation.serverId !== serverId) throw new NotFoundException('Allocation introuvable');
+    if (allocation.isPrimary) throw new BadRequestException("Impossible de supprimer l'allocation primaire");
+    await this.prisma.networkAllocation.delete({ where: { id: allocationId } });
+    await this.audit.log({
+      actorId: actor.id,
+      action: 'server.allocation.remove',
+      targetType: 'Server',
+      targetId: serverId,
+      metadata: { port: allocation.port },
     });
   }
 

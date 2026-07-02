@@ -95,6 +95,14 @@ func (m *Manager) Write(uuid, relPath string, content []byte) error {
 	return os.WriteFile(full, content, 0o644)
 }
 
+func (m *Manager) Mkdir(uuid, relPath string) error {
+	full, err := m.resolve(uuid, relPath)
+	if err != nil {
+		return err
+	}
+	return os.MkdirAll(full, 0o755)
+}
+
 func (m *Manager) Delete(uuid, relPath string) error {
 	full, err := m.resolve(uuid, relPath)
 	if err != nil {

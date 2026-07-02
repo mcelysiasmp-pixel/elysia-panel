@@ -37,6 +37,7 @@ service NodeService {
   rpc WriteFile(WriteFileRequest) returns (FileActionResponse);
   rpc DeleteFile(FileRequest) returns (FileActionResponse);
   rpc RenameFile(RenameFileRequest) returns (FileActionResponse);
+  rpc CreateDirectory(FileRequest) returns (FileActionResponse);
   rpc CompressFiles(CompressRequest) returns (FileActionResponse);
   rpc DecompressFile(FileRequest) returns (FileActionResponse);
 

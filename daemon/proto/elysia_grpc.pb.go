@@ -45,6 +45,7 @@ const (
 	NodeService_WriteFile_FullMethodName       = "/elysia.node.v1.NodeService/WriteFile"
 	NodeService_DeleteFile_FullMethodName      = "/elysia.node.v1.NodeService/DeleteFile"
 	NodeService_RenameFile_FullMethodName      = "/elysia.node.v1.NodeService/RenameFile"
+	NodeService_CreateDirectory_FullMethodName = "/elysia.node.v1.NodeService/CreateDirectory"
 	NodeService_CompressFiles_FullMethodName   = "/elysia.node.v1.NodeService/CompressFiles"
 	NodeService_DecompressFile_FullMethodName  = "/elysia.node.v1.NodeService/DecompressFile"
 	NodeService_CreateBackup_FullMethodName    = "/elysia.node.v1.NodeService/CreateBackup"
@@ -80,6 +81,7 @@ type NodeServiceClient interface {
 	WriteFile(ctx context.Context, in *WriteFileRequest, opts ...grpc.CallOption) (*FileActionResponse, error)
 	DeleteFile(ctx context.Context, in *FileRequest, opts ...grpc.CallOption) (*FileActionResponse, error)
 	RenameFile(ctx context.Context, in *RenameFileRequest, opts ...grpc.CallOption) (*FileActionResponse, error)
+	CreateDirectory(ctx context.Context, in *FileRequest, opts ...grpc.CallOption) (*FileActionResponse, error)
 	CompressFiles(ctx context.Context, in *CompressRequest, opts ...grpc.CallOption) (*FileActionResponse, error)
 	DecompressFile(ctx context.Context, in *FileRequest, opts ...grpc.CallOption) (*FileActionResponse, error)
 	// Sauvegardes
@@ -297,6 +299,16 @@ func (c *nodeServiceClient) RenameFile(ctx context.Context, in *RenameFileReques
 	return out, nil
 }
 
+func (c *nodeServiceClient) CreateDirectory(ctx context.Context, in *FileRequest, opts ...grpc.CallOption) (*FileActionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(FileActionResponse)
+	err := c.cc.Invoke(ctx, NodeService_CreateDirectory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *nodeServiceClient) CompressFiles(ctx context.Context, in *CompressRequest, opts ...grpc.CallOption) (*FileActionResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(FileActionResponse)
@@ -411,6 +423,7 @@ type NodeServiceServer interface {
 	WriteFile(context.Context, *WriteFileRequest) (*FileActionResponse, error)
 	DeleteFile(context.Context, *FileRequest) (*FileActionResponse, error)
 	RenameFile(context.Context, *RenameFileRequest) (*FileActionResponse, error)
+	CreateDirectory(context.Context, *FileRequest) (*FileActionResponse, error)
 	CompressFiles(context.Context, *CompressRequest) (*FileActionResponse, error)
 	DecompressFile(context.Context, *FileRequest) (*FileActionResponse, error)
 	// Sauvegardes
@@ -483,6 +496,9 @@ func (UnimplementedNodeServiceServer) DeleteFile(context.Context, *FileRequest) 
 }
 func (UnimplementedNodeServiceServer) RenameFile(context.Context, *RenameFileRequest) (*FileActionResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method RenameFile not implemented")
+}
+func (UnimplementedNodeServiceServer) CreateDirectory(context.Context, *FileRequest) (*FileActionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateDirectory not implemented")
 }
 func (UnimplementedNodeServiceServer) CompressFiles(context.Context, *CompressRequest) (*FileActionResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CompressFiles not implemented")
@@ -836,6 +852,24 @@ func _NodeService_RenameFile_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _NodeService_CreateDirectory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FileRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NodeServiceServer).CreateDirectory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NodeService_CreateDirectory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NodeServiceServer).CreateDirectory(ctx, req.(*FileRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _NodeService_CompressFiles_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(CompressRequest)
 	if err := dec(in); err != nil {
@@ -1018,6 +1052,10 @@ var NodeService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RenameFile",
 			Handler:    _NodeService_RenameFile_Handler,
+		},
+		{
+			MethodName: "CreateDirectory",
+			Handler:    _NodeService_CreateDirectory_Handler,
 		},
 		{
 			MethodName: "CompressFiles",

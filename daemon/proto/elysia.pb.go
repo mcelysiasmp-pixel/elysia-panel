@@ -1821,7 +1821,7 @@ const file_elysia_proto_rawDesc = "" +
 	"\vbytes_total\x18\x02 \x01(\x03R\n" +
 	"bytesTotal\x12\x1c\n" +
 	"\tcompleted\x18\x03 \x01(\bR\tcompleted\x12\x14\n" +
-	"\x05error\x18\x04 \x01(\tR\x05error2\xd5\x10\n" +
+	"\x05error\x18\x04 \x01(\tR\x05error2\xa9\x11\n" +
 	"\vNodeService\x12A\n" +
 	"\x04Ping\x12\x1b.elysia.node.v1.PingRequest\x1a\x1c.elysia.node.v1.PingResponse\x12L\n" +
 	"\x0eGetSystemStats\x12\x15.elysia.node.v1.Empty\x1a#.elysia.node.v1.SystemStatsResponse\x12Y\n" +
@@ -1844,7 +1844,8 @@ const file_elysia_proto_rawDesc = "" +
 	"\n" +
 	"DeleteFile\x12\x1b.elysia.node.v1.FileRequest\x1a\".elysia.node.v1.FileActionResponse\x12S\n" +
 	"\n" +
-	"RenameFile\x12!.elysia.node.v1.RenameFileRequest\x1a\".elysia.node.v1.FileActionResponse\x12T\n" +
+	"RenameFile\x12!.elysia.node.v1.RenameFileRequest\x1a\".elysia.node.v1.FileActionResponse\x12R\n" +
+	"\x0fCreateDirectory\x12\x1b.elysia.node.v1.FileRequest\x1a\".elysia.node.v1.FileActionResponse\x12T\n" +
 	"\rCompressFiles\x12\x1f.elysia.node.v1.CompressRequest\x1a\".elysia.node.v1.FileActionResponse\x12Q\n" +
 	"\x0eDecompressFile\x12\x1b.elysia.node.v1.FileRequest\x1a\".elysia.node.v1.FileActionResponse\x12Y\n" +
 	"\fCreateBackup\x12#.elysia.node.v1.CreateBackupRequest\x1a$.elysia.node.v1.BackupActionResponse\x12[\n" +
@@ -1924,40 +1925,42 @@ var file_elysia_proto_depIdxs = []int32{
 	16, // 21: elysia.node.v1.NodeService.WriteFile:input_type -> elysia.node.v1.WriteFileRequest
 	14, // 22: elysia.node.v1.NodeService.DeleteFile:input_type -> elysia.node.v1.FileRequest
 	18, // 23: elysia.node.v1.NodeService.RenameFile:input_type -> elysia.node.v1.RenameFileRequest
-	19, // 24: elysia.node.v1.NodeService.CompressFiles:input_type -> elysia.node.v1.CompressRequest
-	14, // 25: elysia.node.v1.NodeService.DecompressFile:input_type -> elysia.node.v1.FileRequest
-	20, // 26: elysia.node.v1.NodeService.CreateBackup:input_type -> elysia.node.v1.CreateBackupRequest
-	21, // 27: elysia.node.v1.NodeService.RestoreBackup:input_type -> elysia.node.v1.RestoreBackupRequest
-	22, // 28: elysia.node.v1.NodeService.DeleteBackup:input_type -> elysia.node.v1.BackupIdRequest
-	24, // 29: elysia.node.v1.NodeService.TransferOut:input_type -> elysia.node.v1.TransferRequest
-	24, // 30: elysia.node.v1.NodeService.TransferIn:input_type -> elysia.node.v1.TransferRequest
-	2,  // 31: elysia.node.v1.NodeService.Ping:output_type -> elysia.node.v1.PingResponse
-	3,  // 32: elysia.node.v1.NodeService.GetSystemStats:output_type -> elysia.node.v1.SystemStatsResponse
-	7,  // 33: elysia.node.v1.NodeService.CreateServer:output_type -> elysia.node.v1.ServerActionResponse
-	7,  // 34: elysia.node.v1.NodeService.StartServer:output_type -> elysia.node.v1.ServerActionResponse
-	7,  // 35: elysia.node.v1.NodeService.StopServer:output_type -> elysia.node.v1.ServerActionResponse
-	7,  // 36: elysia.node.v1.NodeService.RestartServer:output_type -> elysia.node.v1.ServerActionResponse
-	7,  // 37: elysia.node.v1.NodeService.KillServer:output_type -> elysia.node.v1.ServerActionResponse
-	7,  // 38: elysia.node.v1.NodeService.DeleteServer:output_type -> elysia.node.v1.ServerActionResponse
-	7,  // 39: elysia.node.v1.NodeService.ReinstallServer:output_type -> elysia.node.v1.ServerActionResponse
-	7,  // 40: elysia.node.v1.NodeService.SendCommand:output_type -> elysia.node.v1.ServerActionResponse
-	9,  // 41: elysia.node.v1.NodeService.GetServerStats:output_type -> elysia.node.v1.ServerStatsResponse
-	10, // 42: elysia.node.v1.NodeService.StreamConsole:output_type -> elysia.node.v1.ConsoleLine
-	9,  // 43: elysia.node.v1.NodeService.StreamStats:output_type -> elysia.node.v1.ServerStatsResponse
-	13, // 44: elysia.node.v1.NodeService.ListFiles:output_type -> elysia.node.v1.ListFilesResponse
-	15, // 45: elysia.node.v1.NodeService.ReadFile:output_type -> elysia.node.v1.FileContentResponse
-	17, // 46: elysia.node.v1.NodeService.WriteFile:output_type -> elysia.node.v1.FileActionResponse
-	17, // 47: elysia.node.v1.NodeService.DeleteFile:output_type -> elysia.node.v1.FileActionResponse
-	17, // 48: elysia.node.v1.NodeService.RenameFile:output_type -> elysia.node.v1.FileActionResponse
-	17, // 49: elysia.node.v1.NodeService.CompressFiles:output_type -> elysia.node.v1.FileActionResponse
-	17, // 50: elysia.node.v1.NodeService.DecompressFile:output_type -> elysia.node.v1.FileActionResponse
-	23, // 51: elysia.node.v1.NodeService.CreateBackup:output_type -> elysia.node.v1.BackupActionResponse
-	23, // 52: elysia.node.v1.NodeService.RestoreBackup:output_type -> elysia.node.v1.BackupActionResponse
-	23, // 53: elysia.node.v1.NodeService.DeleteBackup:output_type -> elysia.node.v1.BackupActionResponse
-	25, // 54: elysia.node.v1.NodeService.TransferOut:output_type -> elysia.node.v1.TransferProgress
-	25, // 55: elysia.node.v1.NodeService.TransferIn:output_type -> elysia.node.v1.TransferProgress
-	31, // [31:56] is the sub-list for method output_type
-	6,  // [6:31] is the sub-list for method input_type
+	14, // 24: elysia.node.v1.NodeService.CreateDirectory:input_type -> elysia.node.v1.FileRequest
+	19, // 25: elysia.node.v1.NodeService.CompressFiles:input_type -> elysia.node.v1.CompressRequest
+	14, // 26: elysia.node.v1.NodeService.DecompressFile:input_type -> elysia.node.v1.FileRequest
+	20, // 27: elysia.node.v1.NodeService.CreateBackup:input_type -> elysia.node.v1.CreateBackupRequest
+	21, // 28: elysia.node.v1.NodeService.RestoreBackup:input_type -> elysia.node.v1.RestoreBackupRequest
+	22, // 29: elysia.node.v1.NodeService.DeleteBackup:input_type -> elysia.node.v1.BackupIdRequest
+	24, // 30: elysia.node.v1.NodeService.TransferOut:input_type -> elysia.node.v1.TransferRequest
+	24, // 31: elysia.node.v1.NodeService.TransferIn:input_type -> elysia.node.v1.TransferRequest
+	2,  // 32: elysia.node.v1.NodeService.Ping:output_type -> elysia.node.v1.PingResponse
+	3,  // 33: elysia.node.v1.NodeService.GetSystemStats:output_type -> elysia.node.v1.SystemStatsResponse
+	7,  // 34: elysia.node.v1.NodeService.CreateServer:output_type -> elysia.node.v1.ServerActionResponse
+	7,  // 35: elysia.node.v1.NodeService.StartServer:output_type -> elysia.node.v1.ServerActionResponse
+	7,  // 36: elysia.node.v1.NodeService.StopServer:output_type -> elysia.node.v1.ServerActionResponse
+	7,  // 37: elysia.node.v1.NodeService.RestartServer:output_type -> elysia.node.v1.ServerActionResponse
+	7,  // 38: elysia.node.v1.NodeService.KillServer:output_type -> elysia.node.v1.ServerActionResponse
+	7,  // 39: elysia.node.v1.NodeService.DeleteServer:output_type -> elysia.node.v1.ServerActionResponse
+	7,  // 40: elysia.node.v1.NodeService.ReinstallServer:output_type -> elysia.node.v1.ServerActionResponse
+	7,  // 41: elysia.node.v1.NodeService.SendCommand:output_type -> elysia.node.v1.ServerActionResponse
+	9,  // 42: elysia.node.v1.NodeService.GetServerStats:output_type -> elysia.node.v1.ServerStatsResponse
+	10, // 43: elysia.node.v1.NodeService.StreamConsole:output_type -> elysia.node.v1.ConsoleLine
+	9,  // 44: elysia.node.v1.NodeService.StreamStats:output_type -> elysia.node.v1.ServerStatsResponse
+	13, // 45: elysia.node.v1.NodeService.ListFiles:output_type -> elysia.node.v1.ListFilesResponse
+	15, // 46: elysia.node.v1.NodeService.ReadFile:output_type -> elysia.node.v1.FileContentResponse
+	17, // 47: elysia.node.v1.NodeService.WriteFile:output_type -> elysia.node.v1.FileActionResponse
+	17, // 48: elysia.node.v1.NodeService.DeleteFile:output_type -> elysia.node.v1.FileActionResponse
+	17, // 49: elysia.node.v1.NodeService.RenameFile:output_type -> elysia.node.v1.FileActionResponse
+	17, // 50: elysia.node.v1.NodeService.CreateDirectory:output_type -> elysia.node.v1.FileActionResponse
+	17, // 51: elysia.node.v1.NodeService.CompressFiles:output_type -> elysia.node.v1.FileActionResponse
+	17, // 52: elysia.node.v1.NodeService.DecompressFile:output_type -> elysia.node.v1.FileActionResponse
+	23, // 53: elysia.node.v1.NodeService.CreateBackup:output_type -> elysia.node.v1.BackupActionResponse
+	23, // 54: elysia.node.v1.NodeService.RestoreBackup:output_type -> elysia.node.v1.BackupActionResponse
+	23, // 55: elysia.node.v1.NodeService.DeleteBackup:output_type -> elysia.node.v1.BackupActionResponse
+	25, // 56: elysia.node.v1.NodeService.TransferOut:output_type -> elysia.node.v1.TransferProgress
+	25, // 57: elysia.node.v1.NodeService.TransferIn:output_type -> elysia.node.v1.TransferProgress
+	32, // [32:58] is the sub-list for method output_type
+	6,  // [6:32] is the sub-list for method input_type
 	6,  // [6:6] is the sub-list for extension type_name
 	6,  // [6:6] is the sub-list for extension extendee
 	0,  // [0:6] is the sub-list for field type_name
