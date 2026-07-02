@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+vendor/
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# Go
+daemon/bin/
+daemon/elysia-node
+*.exe
+
+# Env & secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+!docker-images/**/*.key.example
+
+# Logs
+*.log
+logs/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Docker
+docker-images/**/context/
+
+# Test / coverage
+coverage/
+.turbo/

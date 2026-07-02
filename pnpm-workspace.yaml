@@ -1,0 +1,7 @@
+packages:
+  - "dashboard"
+  - "backend"
+  - "sdk/typescript"
+  - "cli"
+  - "billing"
+  - "marketplace"

@@ -1,0 +1,93 @@
+# =============================================================================
+# Elysia Panel — local development infrastructure
+# =============================================================================
+# This compose file only brings up Elysia's OWN infra (Postgres, Redis,
+# monitoring). It never touches Pterodactyl/Wings containers, networks or
+# volumes. Project name and container prefix are namespaced to avoid any
+# collision on a shared host.
+#
+# Usage: docker compose -p elysia --env-file .env up -d
+# =============================================================================
+
+name: elysia
+
+networks:
+  elysia-net:
+    name: ${DOCKER_NETWORK_NAME:-elysia-net}
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${DOCKER_NETWORK_SUBNET:-172.30.0.0/16}
+
+volumes:
+  elysia-postgres-data:
+    name: elysia_postgres_data
+  elysia-redis-data:
+    name: elysia_redis_data
+  elysia-prometheus-data:
+    name: elysia_prometheus_data
+  elysia-grafana-data:
+    name: elysia_grafana_data
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: elysia_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-elysia}
+      POSTGRES_USER: ${POSTGRES_USER:-elysia}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_in_production}
+    ports:
+      - "${POSTGRES_PORT:-55432}:5432"
+    volumes:
+      - elysia-postgres-data:/var/lib/postgresql/data
+    networks:
+      - elysia-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-elysia}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: elysia_redis
+    restart: unless-stopped
+    command: >
+      redis-server --requirepass ${REDIS_PASSWORD:-change_me_in_production}
+    ports:
+      - "${REDIS_PORT:-63790}:6379"
+    volumes:
+      - elysia-redis-data:/data
+    networks:
+      - elysia-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: elysia_prometheus
+    restart: unless-stopped
+    ports:
+      - "${PROMETHEUS_PORT:-9490}:9090"
+    volumes:
+      - ./monitoring/prometheus:/etc/prometheus
+      - elysia-prometheus-data:/prometheus
+    networks:
+      - elysia-net
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: elysia_grafana
+    restart: unless-stopped
+    ports:
+      - "${GRAFANA_PORT:-9491}:3000"
+    volumes:
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+      - elysia-grafana-data:/var/lib/grafana
+    networks:
+      - elysia-net

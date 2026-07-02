@@ -1,0 +1,15 @@
+# Elysia Panel — base Prometheus config (dev)
+# Scrape targets are placeholders until the Backend (étape 4) and
+# Elysia Node (étape 5) expose their /metrics endpoints.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: "elysia-backend"
+    static_configs:
+      - targets: ["host.docker.internal:9401"]
+
+  - job_name: "elysia-node"
+    static_configs:
+      - targets: ["host.docker.internal:9500"]

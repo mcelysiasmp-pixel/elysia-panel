@@ -1,0 +1,22 @@
+{
+  "name": "elysia-panel",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Elysia Panel — open-source game hosting panel, independent from Pterodactyl",
+  "license": "MIT",
+  "packageManager": "pnpm@9.0.0",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck"
+  },
+  "devDependencies": {
+    "turbo": "^2.1.0"
+  }
+}
