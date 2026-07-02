@@ -41,7 +41,7 @@ ELYSIA_SRC_DIR="/usr/local/src/elysia-panel"
 # pour être buildés — un seul fichier récupéré par curl ne suffit pas.
 resolve_repo_dir() {
   local script_dir
-  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || true)"
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)" || script_dir=""
 
   if [ -n "$script_dir" ] && [ -f "$script_dir/../backend/package.json" ]; then
     (cd "$script_dir/.." && pwd)

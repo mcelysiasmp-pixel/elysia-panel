@@ -11,7 +11,7 @@ en production par le panel.
 | Image | Rôle | Runtime | Validée par |
 |---|---|---|---|
 | `base/` | Socle commun | Debian 12 + tini + gosu | Build |
-| `minecraft-java/` | Paper, Purpur, Fabric, Vanilla (Forge/NeoForge/Quilt via install script par template) | Temurin 17/21/25 (sélection via `JAVA_VERSION`) | Build + démarrage réel d'un serveur Paper (dernière version, Minecraft 26.2) jusqu'à `Done` |
+| `minecraft-java/` | Paper, Purpur, Fabric, Quilt, Forge, NeoForge, Vanilla | Temurin 17/21/25 (sélection via `JAVA_VERSION`) | Build + démarrage réel d'un serveur Paper (dernière version, Minecraft 26.2) jusqu'à `Done` |
 | `minecraft-bedrock/` | Serveur Bedrock officiel | binaire natif Mojang | Build + démarrage réel jusqu'à `Server started.` |
 | `generic/` | Bots Discord, apps web, VPS léger | Python3, Node.js, git, build-essential | Build + exécution de `STARTUP_COMMAND` |
 
@@ -41,11 +41,6 @@ docker build -t elysia/generic:latest generic/
 
 ## Limitations connues
 
-- Forge/NeoForge/Quilt ne sont pas câblés dans `entrypoint.sh` (leurs
-  installeurs varient trop d'une version à l'autre pour un simple `case`) :
-  prévus via un `installScript` par `ServerTemplate`, exécuté par Elysia
-  Node après création du conteneur (mécanisme déjà en place côté
-  `CreateServerRequest.install_script`, script à écrire par template).
 - FiveM, Rust, Terraria, ARK, CS2, Palworld : pas d'image dédiée dans ce
   MVP — ces jeux tournent via `elysia/generic` avec une image Docker
   tierce fournie par l'utilisateur dans le champ `dockerImage` du

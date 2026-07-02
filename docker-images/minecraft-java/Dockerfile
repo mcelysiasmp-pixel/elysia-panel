@@ -1,9 +1,9 @@
 # =============================================================================
-# Elysia Panel — Minecraft Java (Paper, Purpur, Fabric, Vanilla)
-# Forge/NeoForge/Quilt : même image, installeur téléchargé/exécuté via un
-# script d'installation par serveur (template dédié, voir backend
-# ServerTemplate.installScript) plutôt que codé en dur ici, car leurs
-# installeurs nécessitent une interaction spécifique par version.
+# Elysia Panel — Minecraft Java (Paper, Purpur, Fabric, Quilt, Forge,
+# NeoForge, Vanilla)
+# Chaque TYPE a sa fonction de téléchargement/installation dans
+# entrypoint.sh. Forge/NeoForge génèrent un run.sh (lancé via ce script)
+# plutôt qu'un jar unique — voir LAUNCH_MODE dans entrypoint.sh.
 #
 # Plusieurs JRE Eclipse Temurin sont installées (17/21/25) car les
 # versions de Minecraft récentes exigent des versions de Java de plus en
@@ -43,4 +43,4 @@ ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/entrypoint.sh"]
 
 LABEL org.opencontainers.image.title="elysia/minecraft-java" \
       io.elysia.image.kind="minecraft-java" \
-      io.elysia.image.supports="paper,purpur,fabric,vanilla"
+      io.elysia.image.supports="paper,purpur,fabric,quilt,forge,neoforge,vanilla"
