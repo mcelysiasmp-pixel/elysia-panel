@@ -1,5 +1,18 @@
 # Elysia Panel
 
+## Installation en une commande
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/HeatzyV2/elysia-panel/main/installer/install.sh) --domain panel.example.com
+```
+
+Ajoutez `--dry-run` pour voir ce que le script ferait sans rien exécuter.
+Le script clone automatiquement ce dépôt, installe les dépendances (Docker,
+Node.js, Go), déploie PostgreSQL/Redis, build et installe le Backend/le
+daemon/le Dashboard, configure systemd + nginx + SSL, et ne touche jamais à
+un Pterodactyl existant sur la même machine. Détails et options dans
+[`installer/README.md`](installer/README.md).
+
 Panel d'hébergement open source, indépendant de Pterodactyl, pour héberger
 Minecraft (Java/Bedrock — Paper, Purpur, Fabric, Vanilla ; Forge/NeoForge/
 Quilt via script d'installation par template), des bots Discord, des

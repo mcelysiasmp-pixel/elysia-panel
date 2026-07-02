@@ -1,7 +1,23 @@
 # Installateur Elysia Panel (étape 17)
 
+## One-liner (comme Pterodactyl)
+
 ```bash
-sudo ./install.sh --domain panel.example.com
+bash <(curl -fsSL https://raw.githubusercontent.com/HeatzyV2/elysia-panel/main/installer/install.sh) --domain panel.example.com
+```
+
+Le script détecte qu'il tourne hors d'un clone local (`BASH_SOURCE` ne
+pointe alors vers aucun fichier voisin, cas typique de `bash <(curl ...)`)
+et clone automatiquement le dépôt dans `/usr/local/src/elysia-panel` avant
+de continuer. Utilisez `--ref <branche-ou-tag>` pour cibler autre chose
+que `main`.
+
+## Depuis un clone local
+
+```bash
+git clone https://github.com/HeatzyV2/elysia-panel.git
+cd elysia-panel
+sudo ./installer/install.sh --domain panel.example.com
 ```
 
 ## Ce que fait `install.sh`
@@ -33,6 +49,7 @@ sudo ./install.sh --domain panel.example.com
 | `--domain FQDN` | Domaine du panel (défaut `elysia.local`). |
 | `--skip-ssl` | Ne configure pas certbot. |
 | `--skip-firewall` | Ne touche pas à ufw. |
+| `--ref REF` | Branche/tag à cloner en mode one-liner (défaut `main`). |
 
 ## Validation effectuée
 
@@ -46,6 +63,11 @@ sudo ./install.sh --domain panel.example.com
      un `cat > fichier <<EOF` **hors** du garde-fou `--dry-run`, donc
      systématiquement en écriture réelle même en mode simulation — corrigé
      pour respecter le même contrat que le reste du script.
+- Le vrai one-liner testé contre le dépôt GitHub publié :
+  `bash <(curl -fsSL https://raw.githubusercontent.com/HeatzyV2/elysia-panel/main/installer/install.sh) --dry-run`
+  détecte bien le mode "hors clone local" et déclenche le clonage
+  automatique — vérifié en conditions réelles, pas seulement simulé via
+  process substitution locale.
 
 ## Non testé dans ce dépôt
 
