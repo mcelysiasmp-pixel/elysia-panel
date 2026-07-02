@@ -125,7 +125,7 @@ export class ModsController {
   // CurseForge (manifest.json + overrides/), uploadée directement ici.
   @Post('servers/:serverId/modpacks/curseforge')
   @RequirePermissions('mods.install')
-  @UseInterceptors(FileInterceptor('archive'))
+  @UseInterceptors(FileInterceptor('archive', { limits: { fileSize: 500 * 1024 * 1024 } }))
   installCurseforgePack(
     @Param('serverId') serverId: string,
     @UploadedFile() file: Express.Multer.File,

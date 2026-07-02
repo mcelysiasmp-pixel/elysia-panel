@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance } from 'axios';
+import { assertSafeDownloadUrl } from '../common/url-safety';
 
 export interface CurseForgeSearchResult {
   data: Array<{
@@ -66,6 +67,7 @@ export class CurseforgeService {
   }
 
   async downloadFile(url: string): Promise<Buffer> {
+    assertSafeDownloadUrl(url);
     const { data } = await axios.get<ArrayBuffer>(url, { responseType: 'arraybuffer' });
     return Buffer.from(data);
   }

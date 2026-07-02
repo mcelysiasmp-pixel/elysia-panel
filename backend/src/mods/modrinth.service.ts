@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance } from 'axios';
+import { assertSafeDownloadUrl } from '../common/url-safety';
 
 export interface ModrinthSearchResult {
   hits: Array<{
@@ -71,6 +72,7 @@ export class ModrinthService {
   }
 
   async downloadFile(url: string): Promise<Buffer> {
+    assertSafeDownloadUrl(url);
     const { data } = await this.http.get<ArrayBuffer>(url, { responseType: 'arraybuffer' });
     return Buffer.from(data);
   }

@@ -10,8 +10,8 @@ export class ScheduledTasksController {
 
   @Get()
   @RequirePermissions('servers.update')
-  list(@Param('serverId') serverId: string) {
-    return this.tasks.listForServer(serverId);
+  list(@Param('serverId') serverId: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.tasks.listForServer(serverId, user);
   }
 
   @Post()
@@ -22,26 +22,26 @@ export class ScheduledTasksController {
     @Body('cronExpr') cronExpr: string,
     @Body('action') action: string,
     @Body('payload') payload: Record<string, unknown> | undefined,
-    @CurrentUser() actor: AuthenticatedUser,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.tasks.create(serverId, name, cronExpr, action, payload, actor.id);
+    return this.tasks.create(serverId, name, cronExpr, action, payload, user);
   }
 
   @Post(':id/enable')
   @RequirePermissions('servers.update')
-  enable(@Param('id') id: string, @CurrentUser() actor: AuthenticatedUser) {
-    return this.tasks.setEnabled(id, true, actor.id);
+  enable(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.tasks.setEnabled(id, true, user);
   }
 
   @Post(':id/disable')
   @RequirePermissions('servers.update')
-  disable(@Param('id') id: string, @CurrentUser() actor: AuthenticatedUser) {
-    return this.tasks.setEnabled(id, false, actor.id);
+  disable(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.tasks.setEnabled(id, false, user);
   }
 
   @Delete(':id')
   @RequirePermissions('servers.update')
-  delete(@Param('id') id: string, @CurrentUser() actor: AuthenticatedUser) {
-    return this.tasks.delete(id, actor.id);
+  delete(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.tasks.delete(id, user);
   }
 }

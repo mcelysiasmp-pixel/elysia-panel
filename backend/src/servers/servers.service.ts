@@ -53,6 +53,16 @@ export class ServersService {
   }
 
   async create(dto: CreateServerDto, actor: AuthenticatedUser) {
+    // dto.ownerId ne peut être utilisé que par un admin (wildcard '*') pour
+    // provisionner un serveur au nom d'un client ; sinon un utilisateur
+    // pourrait créer des serveurs facturés/attribués à un autre compte.
+    // Vérifié avant tout travail (lookup template/node) par principe de
+    // fail-fast sur l'autorisation.
+    if (dto.ownerId && dto.ownerId !== actor.id && !actor.permissions.includes('*')) {
+      throw new ForbiddenException("Seul un administrateur peut créer un serveur pour un autre utilisateur");
+    }
+    const ownerId = dto.ownerId ?? actor.id;
+
     const template = await this.prisma.serverTemplate.findUnique({ where: { id: dto.templateId } });
     if (!template) throw new BadRequestException('Template de serveur introuvable');
 
@@ -61,8 +71,6 @@ export class ServersService {
       memoryMb: dto.memoryLimitMb,
       diskMb: dto.diskLimitMb,
     });
-
-    const ownerId = dto.ownerId ?? actor.id;
 
     const server = await this.prisma.$transaction(async (tx) => {
       const created = await tx.server.create({

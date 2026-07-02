@@ -30,31 +30,49 @@ export class ScheduledTasksService {
     private readonly backups: BackupsService,
   ) {}
 
-  create(serverId: string, name: string, cronExpr: string, action: string, payload: Record<string, unknown> | undefined, actorId: string) {
+  async create(
+    serverId: string,
+    name: string,
+    cronExpr: string,
+    action: string,
+    payload: Record<string, unknown> | undefined,
+    user: AuthenticatedUser,
+  ) {
+    await this.servers.findAccessibleOrThrow(serverId, user);
+
     const nextRunAt = this.computeNextRun(cronExpr);
-    return this.prisma.scheduledTask
-      .create({
-        data: { serverId, name, cronExpr, action: action as any, payload: payload as any, nextRunAt },
-      })
-      .then((task) => {
-        this.audit.log({ actorId, action: 'scheduled_task.create', targetType: 'Server', targetId: serverId });
-        return task;
-      });
-  }
-
-  listForServer(serverId: string) {
-    return this.prisma.scheduledTask.findMany({ where: { serverId }, orderBy: { createdAt: 'desc' } });
-  }
-
-  async setEnabled(id: string, enabled: boolean, actorId: string) {
-    const task = await this.prisma.scheduledTask.update({ where: { id }, data: { enabled } });
-    await this.audit.log({ actorId, action: enabled ? 'scheduled_task.enable' : 'scheduled_task.disable', targetType: 'ScheduledTask', targetId: id });
+    const task = await this.prisma.scheduledTask.create({
+      data: { serverId, name, cronExpr, action: action as any, payload: payload as any, nextRunAt },
+    });
+    await this.audit.log({ actorId: user.id, action: 'scheduled_task.create', targetType: 'Server', targetId: serverId });
     return task;
   }
 
-  async delete(id: string, actorId: string) {
+  async listForServer(serverId: string, user: AuthenticatedUser) {
+    await this.servers.findAccessibleOrThrow(serverId, user);
+    return this.prisma.scheduledTask.findMany({ where: { serverId }, orderBy: { createdAt: 'desc' } });
+  }
+
+  async setEnabled(id: string, enabled: boolean, user: AuthenticatedUser) {
+    const existing = await this.prisma.scheduledTask.findUniqueOrThrow({ where: { id } });
+    await this.servers.findAccessibleOrThrow(existing.serverId, user);
+
+    const task = await this.prisma.scheduledTask.update({ where: { id }, data: { enabled } });
+    await this.audit.log({
+      actorId: user.id,
+      action: enabled ? 'scheduled_task.enable' : 'scheduled_task.disable',
+      targetType: 'ScheduledTask',
+      targetId: id,
+    });
+    return task;
+  }
+
+  async delete(id: string, user: AuthenticatedUser) {
+    const existing = await this.prisma.scheduledTask.findUniqueOrThrow({ where: { id } });
+    await this.servers.findAccessibleOrThrow(existing.serverId, user);
+
     await this.prisma.scheduledTask.delete({ where: { id } });
-    await this.audit.log({ actorId, action: 'scheduled_task.delete', targetType: 'ScheduledTask', targetId: id });
+    await this.audit.log({ actorId: user.id, action: 'scheduled_task.delete', targetType: 'ScheduledTask', targetId: id });
   }
 
   // Vérifie chaque minute les tâches planifiées arrivées à échéance et les
@@ -80,6 +98,9 @@ export class ScheduledTasksService {
     }
   }
 
+  // Actions du scheduler : SYSTEM_ACTOR porte le wildcard '*', qui court-
+  // circuite la vérification de propriétaire dans findAccessibleOrThrow —
+  // volontaire, ce code s'exécute hors contexte utilisateur.
   private async execute(serverId: string, action: string, payload: Record<string, unknown> | null) {
     switch (action) {
       case 'POWER_START':
