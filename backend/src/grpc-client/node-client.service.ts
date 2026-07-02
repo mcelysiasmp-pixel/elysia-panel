@@ -4,8 +4,16 @@ import * as protoLoader from '@grpc/proto-loader';
 import * as path from 'path';
 import * as fs from 'fs';
 
-// Chemin du contrat gRPC partagé avec Elysia Node (voir api/openapi/elysia.proto)
-const PROTO_PATH = path.resolve(__dirname, '../../../api/openapi/elysia.proto');
+// Chemin du contrat gRPC partagé avec Elysia Node (voir api/openapi/elysia.proto).
+// Résolu depuis process.cwd() plutôt que __dirname : ce dernier pointe vers
+// backend/dist/src/grpc-client une fois compilé (profondeur différente de
+// backend/src/grpc-client en ts-node), ce qui cassait la résolution du
+// chemin aussi bien en dev (nest start --watch tourne déjà sur le JS
+// compilé) qu'en prod. cwd est toujours la racine de backend/ (voir
+// package.json "start:dev"/"start:prod" et le WorkingDirectory du service
+// systemd) ; l'installateur déploie api/ en frère de backend/ pour que ce
+// chemin relatif reste valide (voir installer/install.sh build_backend()).
+const PROTO_PATH = path.resolve(process.cwd(), '../api/openapi/elysia.proto');
 
 interface NodeConnectionParams {
   host: string;

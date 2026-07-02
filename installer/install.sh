@@ -323,6 +323,12 @@ build_backend() {
   run "cd $ELYSIA_REPO_DIR/backend && DATABASE_URL=\$(grep DATABASE_URL $ELYSIA_ETC_DIR/backend.env | cut -d= -f2-) pnpm exec ts-node prisma/seed.ts"
   run "rsync -a --delete $ELYSIA_REPO_DIR/backend/dist $ELYSIA_REPO_DIR/backend/node_modules $ELYSIA_REPO_DIR/backend/prisma $ELYSIA_OPT_DIR/backend/"
   run "chown -R $ELYSIA_USER:$ELYSIA_USER $ELYSIA_OPT_DIR/backend"
+
+  # Le Backend résout le contrat gRPC partagé en ../api/openapi/elysia.proto
+  # depuis son propre répertoire de travail (voir node-client.service.ts) :
+  # api/ doit donc être déployé en frère de backend/ sous $ELYSIA_OPT_DIR.
+  run "rsync -a --delete $ELYSIA_REPO_DIR/api $ELYSIA_OPT_DIR/"
+  run "chown -R $ELYSIA_USER:$ELYSIA_USER $ELYSIA_OPT_DIR/api"
 }
 
 build_daemon() {
