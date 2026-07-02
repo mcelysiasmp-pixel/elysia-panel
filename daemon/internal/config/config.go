@@ -16,18 +16,30 @@ type Config struct {
 	MTLSCertPath  string
 	MTLSKeyPath   string
 	MTLSCAPath    string
+
+	// SFTP par serveur (voir internal/sftpserver) — port distinct de celui
+	// de Wings (2022) pour ne jamais entrer en collision avec un
+	// Pterodactyl existant sur la même machine (voir .env.example).
+	SFTPPort           int
+	SFTPHostKeyPath    string
+	PanelInternalURL   string
+	NodeInternalSecret string
 }
 
 func Load() *Config {
 	return &Config{
-		APIPort:       envInt("NODE_API_PORT", 9500),
-		GRPCPort:      envInt("NODE_GRPC_PORT", 9501),
-		DataDir:       envStr("ELYSIA_RUNTIME_DIR", "/srv/elysia"),
-		BackupsDir:    envStr("ELYSIA_BACKUPS_DIR", "/var/lib/elysia/backups"),
-		DockerNetwork: envStr("DOCKER_NETWORK_NAME", "elysia-net"),
-		MTLSCertPath:  envStr("NODE_MTLS_CERT", ""),
-		MTLSKeyPath:   envStr("NODE_MTLS_KEY", ""),
-		MTLSCAPath:    envStr("NODE_MTLS_CA", ""),
+		APIPort:            envInt("NODE_API_PORT", 9500),
+		GRPCPort:           envInt("NODE_GRPC_PORT", 9501),
+		DataDir:            envStr("ELYSIA_RUNTIME_DIR", "/srv/elysia"),
+		BackupsDir:         envStr("ELYSIA_BACKUPS_DIR", "/var/lib/elysia/backups"),
+		DockerNetwork:      envStr("DOCKER_NETWORK_NAME", "elysia-net"),
+		MTLSCertPath:       envStr("NODE_MTLS_CERT", ""),
+		MTLSKeyPath:        envStr("NODE_MTLS_KEY", ""),
+		MTLSCAPath:         envStr("NODE_MTLS_CA", ""),
+		SFTPPort:           envInt("NODE_SFTP_PORT", 9522),
+		SFTPHostKeyPath:    envStr("NODE_SFTP_HOST_KEY", "/etc/elysia/certs/sftp_host_ed25519"),
+		PanelInternalURL:   envStr("PANEL_INTERNAL_URL", "http://127.0.0.1:9401"),
+		NodeInternalSecret: envStr("NODE_INTERNAL_SECRET", ""),
 	}
 }
 

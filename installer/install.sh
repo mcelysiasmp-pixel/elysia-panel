@@ -261,11 +261,12 @@ setup_secrets_and_env() {
     return
   fi
 
-  local pg_password jwt_access jwt_refresh redis_password
+  local pg_password jwt_access jwt_refresh redis_password node_internal_secret
   pg_password=$(generate_secret)
   jwt_access=$(generate_secret)
   jwt_refresh=$(generate_secret)
   redis_password=$(generate_secret)
+  node_internal_secret=$(generate_secret)
 
   cat > "$env_file" <<EOF
 DATABASE_URL="postgresql://elysia:${pg_password}@127.0.0.1:${ELYSIA_PORTS[POSTGRES_PORT]}/elysia?schema=public"
@@ -276,11 +277,18 @@ BACKEND_HTTP_PORT=${ELYSIA_PORTS[BACKEND_HTTP_PORT]}
 BACKEND_WS_PORT=${ELYSIA_PORTS[BACKEND_WS_PORT]}
 JWT_ACCESS_SECRET=${jwt_access}
 JWT_REFRESH_SECRET=${jwt_refresh}
+NODE_INTERNAL_SECRET=${node_internal_secret}
 ELYSIA_ENV=production
 DASHBOARD_URL=https://${ELYSIA_DOMAIN}
 EOF
   chmod 600 "$env_file"
   chown "$ELYSIA_USER:$ELYSIA_USER" "$env_file"
+
+  # Réutilisé tel quel par node.env (build_daemon) pour que le daemon
+  # s'authentifie auprès du backend avec le même secret — jamais régénéré
+  # indépendamment, sinon l'auth SFTP casserait au prochain redémarrage.
+  echo "$node_internal_secret" > "$ELYSIA_ETC_DIR/.node-internal-secret"
+  chmod 600 "$ELYSIA_ETC_DIR/.node-internal-secret"
 
   # Réutilisés par docker-compose (Postgres/Redis) pour rester cohérents.
   cat > "$ELYSIA_ETC_DIR/infra.env" <<EOF
@@ -330,12 +338,15 @@ build_daemon() {
     cat > "$ELYSIA_ETC_DIR/node.env" <<EOF
 NODE_API_PORT=${ELYSIA_PORTS[NODE_API_PORT]}
 NODE_GRPC_PORT=${ELYSIA_PORTS[NODE_GRPC_PORT]}
+NODE_SFTP_PORT=${ELYSIA_PORTS[NODE_SFTP_PORT]}
 ELYSIA_RUNTIME_DIR=${ELYSIA_SRV_DIR}
 ELYSIA_BACKUPS_DIR=${ELYSIA_VAR_DIR}/backups
 DOCKER_NETWORK_NAME=elysia-net
 NODE_MTLS_CERT=${ELYSIA_ETC_DIR}/certs/node.crt
 NODE_MTLS_KEY=${ELYSIA_ETC_DIR}/certs/node.key
 NODE_MTLS_CA=${ELYSIA_ETC_DIR}/certs/ca.crt
+PANEL_INTERNAL_URL=http://127.0.0.1:${ELYSIA_PORTS[BACKEND_HTTP_PORT]}
+NODE_INTERNAL_SECRET=$(cat "$ELYSIA_ETC_DIR/.node-internal-secret")
 EOF
     chmod 600 "$ELYSIA_ETC_DIR/node.env"
   fi

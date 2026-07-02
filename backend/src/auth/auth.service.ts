@@ -75,6 +75,19 @@ export class AuthService {
     return valid ? user : null;
   }
 
+  // Utilisé par l'authentification SFTP (username, pas email — voir
+  // FilesModule/SftpAuthService et convention "username.serveurCourt").
+  async validateLocalUserByUsername(username: string, password: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { username },
+      include: { role: { include: { permissions: { include: { permission: true } } } } },
+    });
+    if (!user || !user.passwordHash || user.status !== 'ACTIVE') return null;
+    const valid = await bcrypt.compare(password, user.passwordHash);
+    if (!valid) return null;
+    return { ...user, permissions: this.permissionsForRole(user.role) };
+  }
+
   async login(userId: string, totpCode: string | undefined, ip?: string, userAgent?: string) {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
 
@@ -145,13 +158,20 @@ export class AuthService {
       throw new UnauthorizedException('Compte invalide');
     }
 
-    const permissions = user.role
-      ? user.role.isSystem && user.role.name === 'admin'
-        ? ['*']
-        : user.role.permissions.map((rp) => rp.permission.key)
-      : [];
+    const permissions = this.permissionsForRole(user.role);
 
     return { id: user.id, email: user.email, username: user.username, roleId: user.roleId, permissions };
+  }
+
+  // Résout la liste de permissions effectives d'un rôle (utilisé pour les
+  // access tokens REST/WS ainsi que pour l'authentification SFTP — voir
+  // FilesModule/SftpAuthService).
+  permissionsForRole(
+    role: { isSystem: boolean; name: string; permissions: { permission: { key: string } }[] } | null,
+  ): string[] {
+    if (!role) return [];
+    if (role.isSystem && role.name === 'admin') return ['*'];
+    return role.permissions.map((rp) => rp.permission.key);
   }
 
   async validateOAuthLogin(profile: OAuthProfile) {

@@ -23,6 +23,7 @@ import (
 	"github.com/elysia-panel/elysia-node/internal/dockermgr"
 	"github.com/elysia-panel/elysia-node/internal/filemgr"
 	"github.com/elysia-panel/elysia-node/internal/grpcserver"
+	"github.com/elysia-panel/elysia-node/internal/sftpserver"
 	nodev1 "github.com/elysia-panel/elysia-node/proto"
 )
 
@@ -70,8 +71,30 @@ func main() {
 		}
 	}()
 
+	sftpCtx, cancelSFTP := context.WithCancel(context.Background())
+	if cfg.NodeInternalSecret == "" {
+		log.Println("ATTENTION: NODE_INTERNAL_SECRET absent — serveur SFTP désactivé (dev local uniquement)")
+	} else {
+		sftpSrv, err := sftpserver.New(sftpserver.Config{
+			ListenAddr:       fmt.Sprintf(":%d", cfg.SFTPPort),
+			HostKeyPath:      cfg.SFTPHostKeyPath,
+			PanelInternalURL: cfg.PanelInternalURL,
+			NodeSecret:       cfg.NodeInternalSecret,
+		}, files)
+		if err != nil {
+			log.Fatalf("init serveur SFTP: %v", err)
+		}
+		go func() {
+			log.Printf("Elysia Node: SFTP sur :%d", cfg.SFTPPort)
+			if err := sftpSrv.Serve(sftpCtx); err != nil {
+				log.Printf("serveur SFTP arrêté: %v", err)
+			}
+		}()
+	}
+
 	waitForShutdown()
 	log.Println("Arrêt d'Elysia Node...")
+	cancelSFTP()
 	grpcServer.GracefulStop()
 	_ = httpServer.Shutdown(context.Background())
 }

@@ -126,6 +126,13 @@ func (m *Manager) Rename(uuid, fromRel, toRel string) error {
 	return os.Rename(from, to)
 }
 
+// Resolve expose resolve() aux paquets frères (sftpserver) qui doivent
+// appliquer exactement la même protection anti path-traversal plutôt que
+// de la dupliquer.
+func (m *Manager) Resolve(uuid, relPath string) (string, error) {
+	return m.resolve(uuid, relPath)
+}
+
 // EnsureServerRoot crée le dossier de données d'un serveur (appelé à la
 // création du serveur, avant le premier démarrage du conteneur).
 func (m *Manager) EnsureServerRoot(uuid string) (string, error) {

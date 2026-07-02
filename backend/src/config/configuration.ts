@@ -49,6 +49,13 @@ export default () => ({
   // credentials S3-compatible pour l'instance ; voir .env.example). Si
   // BACKUP_S3_BUCKET n'est pas défini, toutes les sauvegardes restent en
   // LOCAL (sur le node, via Elysia Node).
+  // Secret partagé entre le Backend et chaque Elysia Node, utilisé pour les
+  // appels HTTP internes daemon -> backend (ex: authentification SFTP) —
+  // même niveau de confiance que la CA mTLS déjà utilisée pour backend ->
+  // daemon (voir docs/architecture). Généré par l'installateur en prod.
+  internal: {
+    nodeSecret: process.env.NODE_INTERNAL_SECRET ?? 'dev_node_internal_secret',
+  },
   backup: {
     driver: process.env.BACKUP_S3_BUCKET ? (process.env.BACKUP_DRIVER ?? 'S3') : 'LOCAL',
     s3: {
