@@ -18,7 +18,7 @@ export interface ServerListItem {
   cpuLimitPct: number;
   memoryLimitMb: number;
   diskLimitMb: number;
-  node: { id: string; name: string };
+  node: { id: string; name: string; fqdn?: string };
   template: ServerTemplate;
   allocations: { ip: string; port: number; isPrimary: boolean }[];
   createdAt: string;
