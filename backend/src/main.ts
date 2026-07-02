@@ -6,6 +6,7 @@ import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from './auth/guards/permissions.guard';
+import { ApiKeysService } from './api-keys/api-keys.service';
 
 // Refuse de démarrer en production avec les secrets JWT par défaut du
 // dépôt (dev_access_secret / dev_refresh_secret) : une négligence courante
@@ -53,7 +54,7 @@ async function bootstrap() {
 
   const reflector = app.get(Reflector);
   app.useGlobalGuards(
-    new JwtAuthGuard(reflector),
+    new JwtAuthGuard(reflector, app.get(ApiKeysService)),
     new PermissionsGuard(reflector),
   );
 

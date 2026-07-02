@@ -23,6 +23,7 @@ import { BillingModule } from './billing/billing.module';
 import { MarketplaceModule } from './marketplace/marketplace.module';
 import { SupportModule } from './support/support.module';
 import { MonitoringModule } from './monitoring/monitoring.module';
+import { ApiKeysModule } from './api-keys/api-keys.module';
 
 @Module({
   imports: [
@@ -58,6 +59,7 @@ import { MonitoringModule } from './monitoring/monitoring.module';
     MarketplaceModule,
     SupportModule,
     MonitoringModule,
+    ApiKeysModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
