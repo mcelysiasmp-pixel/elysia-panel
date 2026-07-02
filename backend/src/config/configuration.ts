@@ -45,4 +45,18 @@ export default () => ({
     apiUrl: process.env.CURSEFORGE_API_URL ?? 'https://api.curseforge.com/v1',
     apiKey: process.env.CURSEFORGE_API_KEY,
   },
+  // Destination de sauvegarde par défaut pour tout le panel (un seul jeu de
+  // credentials S3-compatible pour l'instance ; voir .env.example). Si
+  // BACKUP_S3_BUCKET n'est pas défini, toutes les sauvegardes restent en
+  // LOCAL (sur le node, via Elysia Node).
+  backup: {
+    driver: process.env.BACKUP_S3_BUCKET ? (process.env.BACKUP_DRIVER ?? 'S3') : 'LOCAL',
+    s3: {
+      endpoint: process.env.BACKUP_S3_ENDPOINT,
+      bucket: process.env.BACKUP_S3_BUCKET,
+      accessKey: process.env.BACKUP_S3_ACCESS_KEY,
+      secretKey: process.env.BACKUP_S3_SECRET_KEY,
+      useSsl: process.env.BACKUP_S3_USE_SSL !== 'false',
+    },
+  },
 });

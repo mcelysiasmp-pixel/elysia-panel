@@ -12,7 +12,7 @@ cmd/elysia-node/       point d'entrée (main.go)
 internal/config/       chargement de la configuration (variables d'env)
 internal/dockermgr/    cycle de vie des conteneurs Docker, réseaux par serveur, stats, logs, stdin
 internal/filemgr/      opérations fichiers bornées au dossier du serveur (anti path-traversal)
-internal/backupmgr/    sauvegardes locales tar.gz (sha256)
+internal/backupmgr/    sauvegardes locales tar.gz (sha256) + remote.go (S3-compatible: S3/R2/B2/MinIO)
 internal/grpcserver/   implémentation du service gRPC NodeService
 proto/                 code généré par protoc à partir de api/openapi/elysia.proto
 ```
@@ -46,6 +46,13 @@ serveur, démarrage, streaming des logs, envoi de commande via stdin,
 streaming de métriques CPU/RAM/réseau, opérations fichiers, sauvegarde
 locale avec checksum, arrêt et suppression complète (conteneur + réseau).
 
+Sauvegardes distantes S3-compatibles (S3, Cloudflare R2, Backblaze B2,
+MinIO) validées de bout en bout contre un vrai MinIO local : upload,
+corruption volontaire du fichier local, restauration depuis le bucket,
+contenu identique à l'original confirmé, puis suppression de l'objet.
+Configuré via `BACKUP_S3_*` côté Backend (un seul jeu de credentials pour
+toute l'instance, voir `backend/src/config/configuration.ts`).
+
 ## Limitations connues (non implémenté dans ce MVP)
 
 - `ReinstallServer`, `CompressFiles`, `DecompressFile`, `TransferOut`,
@@ -54,8 +61,7 @@ locale avec checksum, arrêt et suppression complète (conteneur + réseau).
   La migration de serveurs entre nodes (§5 de l'architecture) nécessite ces
   RPC de streaming de fichiers, à implémenter avant la mise en production
   du clustering.
-- Sauvegardes distantes (S3, Cloudflare R2, Backblaze B2, MinIO, SFTP, FTP) :
-  seul le driver `LOCAL` (tar.gz + sha256) est implémenté. Point
-  d'extension : `internal/backupmgr`.
+- Sauvegardes SFTP/FTP : non implémentées (seuls les drivers S3-compatibles
+  et LOCAL le sont). Point d'extension : `internal/backupmgr`.
 - `GetSystemStats` (métriques globales du node, hors conteneurs) : non
   implémenté, renvoie `Unimplemented`.

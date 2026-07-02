@@ -29,7 +29,7 @@ set -euo pipefail
 # -----------------------------------------------------------------------------
 # Configuration (namespace Elysia — voir .env.example à la racine du repo)
 # -----------------------------------------------------------------------------
-ELYSIA_GIT_REPO="https://github.com/elysia-panel/elysia-panel.git"
+ELYSIA_GIT_REPO="https://github.com/HeatzyV2/elysia-panel.git"
 ELYSIA_GIT_REF="main"
 ELYSIA_SRC_DIR="/usr/local/src/elysia-panel"
 

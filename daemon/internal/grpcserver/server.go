@@ -193,23 +193,71 @@ func (s *Server) RenameFile(_ context.Context, req *nodev1.RenameFileRequest) (*
 	return &nodev1.FileActionResponse{Success: true}, nil
 }
 
-func (s *Server) CreateBackup(_ context.Context, req *nodev1.CreateBackupRequest) (*nodev1.BackupActionResponse, error) {
-	result, err := s.backups.Create(req.GetServerUuid(), req.GetBackupId())
+// isRemoteDriver: tout driver autre que LOCAL est un stockage compatible S3
+// (S3, CLOUDFLARE_R2, BACKBLAZE_B2, MINIO partagent tous la même API S3 —
+// voir backupmgr.RemoteConfig). SFTP/FTP restent non implémentés.
+func isRemoteDriver(driver string) bool {
+	switch driver {
+	case "", "LOCAL":
+		return false
+	case "S3", "CLOUDFLARE_R2", "BACKBLAZE_B2", "MINIO":
+		return true
+	default:
+		return false
+	}
+}
+
+func (s *Server) CreateBackup(ctx context.Context, req *nodev1.CreateBackupRequest) (*nodev1.BackupActionResponse, error) {
+	if !isRemoteDriver(req.GetDriver()) {
+		result, err := s.backups.Create(req.GetServerUuid(), req.GetBackupId())
+		if err != nil {
+			return &nodev1.BackupActionResponse{Success: false, Message: err.Error()}, nil
+		}
+		return &nodev1.BackupActionResponse{Success: true, SizeBytes: result.SizeBytes, Checksum: result.Checksum}, nil
+	}
+
+	cfg, err := backupmgr.RemoteConfigFromMap(req.GetDriverConfig())
+	if err != nil {
+		return &nodev1.BackupActionResponse{Success: false, Message: err.Error()}, nil
+	}
+	result, err := s.backups.CreateRemote(ctx, req.GetServerUuid(), req.GetBackupId(), cfg)
 	if err != nil {
 		return &nodev1.BackupActionResponse{Success: false, Message: err.Error()}, nil
 	}
 	return &nodev1.BackupActionResponse{Success: true, SizeBytes: result.SizeBytes, Checksum: result.Checksum}, nil
 }
 
-func (s *Server) RestoreBackup(_ context.Context, req *nodev1.RestoreBackupRequest) (*nodev1.BackupActionResponse, error) {
-	if err := s.backups.Restore(req.GetServerUuid(), req.GetBackupId()); err != nil {
+func (s *Server) RestoreBackup(ctx context.Context, req *nodev1.RestoreBackupRequest) (*nodev1.BackupActionResponse, error) {
+	if !isRemoteDriver(req.GetDriver()) {
+		if err := s.backups.Restore(req.GetServerUuid(), req.GetBackupId()); err != nil {
+			return &nodev1.BackupActionResponse{Success: false, Message: err.Error()}, nil
+		}
+		return &nodev1.BackupActionResponse{Success: true}, nil
+	}
+
+	cfg, err := backupmgr.RemoteConfigFromMap(req.GetDriverConfig())
+	if err != nil {
+		return &nodev1.BackupActionResponse{Success: false, Message: err.Error()}, nil
+	}
+	if err := s.backups.RestoreRemote(ctx, req.GetServerUuid(), req.GetBackupId(), req.GetRemotePath(), cfg); err != nil {
 		return &nodev1.BackupActionResponse{Success: false, Message: err.Error()}, nil
 	}
 	return &nodev1.BackupActionResponse{Success: true}, nil
 }
 
-func (s *Server) DeleteBackup(_ context.Context, req *nodev1.BackupIdRequest) (*nodev1.BackupActionResponse, error) {
-	if err := s.backups.Delete(req.GetServerUuid(), req.GetBackupId()); err != nil {
+func (s *Server) DeleteBackup(ctx context.Context, req *nodev1.BackupIdRequest) (*nodev1.BackupActionResponse, error) {
+	if !isRemoteDriver(req.GetDriver()) {
+		if err := s.backups.Delete(req.GetServerUuid(), req.GetBackupId()); err != nil {
+			return &nodev1.BackupActionResponse{Success: false, Message: err.Error()}, nil
+		}
+		return &nodev1.BackupActionResponse{Success: true}, nil
+	}
+
+	cfg, err := backupmgr.RemoteConfigFromMap(req.GetDriverConfig())
+	if err != nil {
+		return &nodev1.BackupActionResponse{Success: false, Message: err.Error()}, nil
+	}
+	if err := s.backups.DeleteRemote(ctx, req.GetServerUuid(), req.GetBackupId(), req.GetRemotePath(), cfg); err != nil {
 		return &nodev1.BackupActionResponse{Success: false, Message: err.Error()}, nil
 	}
 	return &nodev1.BackupActionResponse{Success: true}, nil
