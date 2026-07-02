@@ -141,9 +141,13 @@ stats live).
     bar chart plutôt que sparklines ici. Vérifié la forme exacte de la
     réponse `/monitoring/summary` avec de vraies données (node + serveurs
     de plusieurs statuts) contre ce que consomment les nouveaux composants.
-11. (à committer avec cette mise à jour) — Bouton install marketplace,
-    scope réduit aux items PLUGIN gratuits (voir section ci-dessous pour le
-    détail et le raisonnement sur le scope).
+11. `f5a7a68` — Bouton install marketplace, scope réduit aux items PLUGIN
+    gratuits (voir section ci-dessous pour le détail et le raisonnement sur
+    le scope).
+12. (à committer avec cette mise à jour) — Admin roles/permissions +
+    Scheduled tasks UI (voir section ci-dessous). Checkout billing marqué
+    hors scope après clarification utilisateur : le panel est auto-hébergé
+    façon Pterodactyl, pas de facturation client à construire.
 
 ## Reste à faire — chantiers dashboard (priorisés avec l'utilisateur)
 
@@ -165,7 +169,12 @@ l'audit initial. Statut mis à jour :
    réel avec un compte client et un compte staff distincts : création,
    réponse staff, changement de statut, et vérifié que le 403 backend sur
    `:id/status` est bien renvoyé à un client qui tente de forcer le statut.
-5. **Checkout billing** — pas de flux de paiement Stripe côté dashboard
+5. ~~Checkout billing~~ **hors scope** — clarifié avec l'utilisateur
+   (2026-07-02) : ce panel est utilisé façon Pterodactyl, auto-hébergé sur
+   un VPS déjà payé par ailleurs. L'utilisateur n'est pas un hébergeur
+   revendant des serveurs à des clients, donc pas de flux de paiement
+   client à construire. Le module `billing` backend (Stripe) reste dans le
+   code mais n'a pas besoin d'UI dashboard.
 6. ~~Bouton install marketplace~~ ✅ fait, **scope volontairement réduit** :
    seuls les items `type: PLUGIN` et gratuits (`priceCents === 0`) sont
    installables — le marketplace a 5 types (PLUGIN/THEME/TEMPLATE/
@@ -189,10 +198,42 @@ l'audit initial. Statut mis à jour :
    compteur `downloads` incrémenté, apparition dans `GET .../mods`, et les
    3 garde-fous testés individuellement : 400 sur type non-PLUGIN, 400 sur
    item payant, 400 SSRF sur host non autorisé.
-7. **Admin roles/permissions** — RBAC complet côté backend, aucune UI
+7. ~~Admin roles/permissions~~ ✅ fait — nouvelle page `admin/roles/page.tsx` :
+   création de rôle, checkboxes de permissions groupées (par le champ
+   `group` de `Permission`), sauvegarde par rôle (`PUT
+   /roles/:id/permissions`), suppression (bloquée côté backend pour les
+   rôles système `admin`/`client`, géré par `role.isSystem` — bouton
+   supprimer masqué côté UI pour ces rôles). Ajout aussi de l'assignation
+   de rôle à un utilisateur dans `admin/users/page.tsx` (Select par ligne,
+   `PATCH /users/:id` avec `roleId` — l'endpoint existait déjà mais n'était
+   pas exploité). Nouvelle entrée de nav "Rôles" dans `ADMIN_NAV`. Testé en
+   réel : liste rôles/permissions, création + attribution de permissions +
+   suppression d'un rôle custom, 400 backend confirmé sur la suppression
+   d'un rôle système, et assignation de rôle à un utilisateur cible.
 8. ~~Monitoring Prometheus visualisé~~ ✅ fait (voir section ci-dessus)
-9. **Scheduled tasks UI** — équivalent "Schedules" Ptero, 100% absent
+9. ~~Scheduled tasks UI~~ ✅ fait — nouvel onglet "Tâches planifiées" dans
+   la page serveur (`components/panel/scheduled-tasks-panel.tsx`) : liste
+   avec statut/prochaine exécution, formulaire de création (nom, expression
+   cron en texte libre, action parmi POWER_START/STOP/RESTART/
+   BACKUP_CREATE/COMMAND_SEND — champ commande supplémentaire affiché
+   seulement pour COMMAND_SEND), toggle enable/disable, suppression. Suit
+   le même pattern que `backups-panel.tsx`. Testé en réel : création d'une
+   tâche BACKUP_CREATE et d'une tâche COMMAND_SEND avec payload, vérifié
+   que `nextRunAt` est calculé correctement par le backend
+   (`cron-parser`), enable/disable, suppression — l'exécution différée
+   elle-même (le `@Cron(EVERY_MINUTE)` qui déclenche les tâches dues) n'a
+   pas été observée en conditions réelles (aurait nécessité d'attendre une
+   échéance cron), mais le code d'exécution (`ScheduledTasksService.execute`)
+   n'a pas été modifié cette session — seul le CRUD est nouveau.
 10. ~~Nodes : maintenance + delete~~ ✅ fait (voir section ci-dessus)
+
+## Chantiers restants
+
+Aucun — les 10 chantiers priorisés avec l'utilisateur sont traités (le
+checkout billing a été explicitement mis hors scope, voir point 5). Session
+du 2026-07-02 : 8 commits, bug WebSocket + 7 chantiers dashboard, tous
+vérifiés en conditions réelles (backend + daemon + Docker) sauf mention
+contraire ci-dessus.
 
 ## Points de vigilance pour la suite
 

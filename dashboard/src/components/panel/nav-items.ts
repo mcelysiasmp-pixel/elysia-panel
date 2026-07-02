@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { Server, Users, Network, ScrollText, Activity, CreditCard, LifeBuoy, Store } from "lucide-react";
+import { Server, Users, Network, ScrollText, Activity, CreditCard, LifeBuoy, Store, ShieldCheck } from "lucide-react";
 
 export interface NavItem {
   label: string;
@@ -17,6 +17,7 @@ export const CLIENT_NAV: NavItem[] = [
 
 export const ADMIN_NAV: NavItem[] = [
   { label: "Utilisateurs", href: "/admin/users", icon: Users, requiresAdmin: true },
+  { label: "Rôles", href: "/admin/roles", icon: ShieldCheck, requiresAdmin: true },
   { label: "Nodes", href: "/admin/nodes", icon: Network, requiresAdmin: true },
   { label: "Monitoring", href: "/admin/monitoring", icon: Activity, requiresAdmin: true },
   { label: "Audit logs", href: "/admin/audit-logs", icon: ScrollText, requiresAdmin: true },

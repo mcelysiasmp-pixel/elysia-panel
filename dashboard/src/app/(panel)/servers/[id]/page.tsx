@@ -13,6 +13,7 @@ import { SftpPanel } from "@/components/panel/sftp-panel";
 import { FileManagerPanel } from "@/components/panel/file-manager-panel";
 import { StatsPanel } from "@/components/panel/stats-panel";
 import { SettingsPanel } from "@/components/panel/settings-panel";
+import { ScheduledTasksPanel } from "@/components/panel/scheduled-tasks-panel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function ServerDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -53,6 +54,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
           <TabsTrigger value="backups">Sauvegardes</TabsTrigger>
           <TabsTrigger value="mods">Mods / Plugins</TabsTrigger>
           <TabsTrigger value="sftp">SFTP</TabsTrigger>
+          <TabsTrigger value="schedules">Tâches planifiées</TabsTrigger>
           <TabsTrigger value="settings">Paramètres</TabsTrigger>
         </TabsList>
         <TabsContent value="console" className="pt-4">
@@ -69,6 +71,9 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
         </TabsContent>
         <TabsContent value="sftp" className="pt-4">
           {server && <SftpPanel server={server} />}
+        </TabsContent>
+        <TabsContent value="schedules" className="pt-4">
+          <ScheduledTasksPanel serverId={id} />
         </TabsContent>
         <TabsContent value="settings" className="pt-4">
           {server && <SettingsPanel server={server} />}
