@@ -2,8 +2,8 @@ import { Logger, UnauthorizedException } from '@nestjs/common';
 import {
   ConnectedSocket,
   MessageBody,
-  OnGatewayConnection,
   OnGatewayDisconnect,
+  OnGatewayInit,
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
@@ -24,7 +24,7 @@ interface AuthedSocket extends Socket {
 // Namespace unique regroupant console, stats et notifications temps réel.
 // Auth via le même access token JWT que l'API REST (handshake.auth.token).
 @WebSocketGateway({ namespace: '/ws', cors: { origin: '*' } })
-export class ConsoleGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class ConsoleGateway implements OnGatewayInit, OnGatewayDisconnect {
   @WebSocketServer()
   server!: Server;
 
@@ -36,16 +36,29 @@ export class ConsoleGateway implements OnGatewayConnection, OnGatewayDisconnect 
     private readonly nodeClient: NodeClientService,
   ) {}
 
-  async handleConnection(socket: AuthedSocket) {
-    try {
-      const token = socket.handshake.auth?.token ?? socket.handshake.query?.token;
-      if (typeof token !== 'string') throw new UnauthorizedException('Token manquant');
-      socket.data.user = await this.authService.resolveUserFromAccessToken(token);
-      socket.data.cancelStreams = new Map();
-    } catch (err) {
-      this.logger.warn(`Connexion WS rejetée: ${(err as Error).message}`);
-      socket.disconnect(true);
-    }
+  // Auth en middleware de namespace plutôt que dans handleConnection : ce
+  // dernier est asynchrone (résolution JWT + lookup Prisma) mais NestJS
+  // n'attend pas sa complétion avant de dispatcher les messages entrants —
+  // un client qui émet un événement juste après 'connect' pouvait donc
+  // atteindre @SubscribeMessage avant que socket.data.user soit renseigné
+  // (`Cannot read properties of undefined (reading 'permissions')`, crash
+  // systématique de stats:subscribe car son ack aller-retour est plus
+  // rapide que console:subscribe à être testé manuellement). Un middleware
+  // `server.use()` fait partie du handshake : socket.io garantit qu'il est
+  // résolu avant que 'connection' ne soit émis et donc avant tout message.
+  afterInit(server: Server) {
+    server.use(async (socket: AuthedSocket, next) => {
+      try {
+        const token = socket.handshake.auth?.token ?? socket.handshake.query?.token;
+        if (typeof token !== 'string') throw new UnauthorizedException('Token manquant');
+        socket.data.user = await this.authService.resolveUserFromAccessToken(token);
+        socket.data.cancelStreams = new Map();
+        next();
+      } catch (err) {
+        this.logger.warn(`Connexion WS rejetée: ${(err as Error).message}`);
+        next(err as Error);
+      }
+    });
   }
 
   handleDisconnect(socket: AuthedSocket) {
